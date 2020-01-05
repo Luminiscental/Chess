@@ -1,4 +1,6 @@
 module Main where
 
+import           Chess.Engine.State             ( defaultBoard )
+
 main :: IO ()
-main = putStrLn "Hello, World!"
+main = print defaultBoard
