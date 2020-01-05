@@ -12,6 +12,7 @@ tests:
     - Chess
 maintainer: luminiscental01@gmail.com
 dependencies:
+- containers
 - array
 - base >= 4.7 && < 5
 name: Chess

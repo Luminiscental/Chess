@@ -1,17 +1,30 @@
 module Chess.Engine.State
     ( Board
     , BoardIx
+    , Game(..)
     , Piece(..)
     , PieceType(..)
-    , PieceColor(..)
+    , Color(..)
+    , nextTurn
+    , stepGame
+    , startGame
     , boardRange
     , emptyBoard
     , defaultBoard
+    , getMaterial
+    , getBishopColors
     )
 where
 
+import           Data.Maybe                     ( catMaybes )
+import qualified Data.List                     as List
+import           Data.Set                       ( Set )
+import qualified Data.Set                      as Set
+
 import           Data.Array.IArray              ( Ix
                                                 , Array
+                                                , elems
+                                                , assocs
                                                 , array
                                                 , range
                                                 , (//)
@@ -26,30 +39,34 @@ mkArray mkElem ixRange =
 
 -- | The board is represented as an array of 'Maybe Piece'.
 type Board = Array BoardIx (Maybe Piece)
--- | The board is indexed by '(Int, Int)' pairs, from (1, 1) to (8, 8) inclusive.
+-- | The board is indexed by '(column, row)' pairs, from (1, 1) to (8, 8) inclusive.
 type BoardIx = (Int, Int)
 -- | Each piece stores its type and color along with whether it has moved.
-data Piece = Piece { pieceType :: PieceType, pieceColor :: PieceColor, hasMoved :: Bool }
+data Piece = Piece { pieceType :: PieceType, pieceColor :: Color, hasMoved :: Bool }
     deriving (Show, Eq)
 data PieceType = Pawn | Rook | Knight | Bishop | Queen | King
-    deriving (Show, Eq)
-data PieceColor = Black | White
-    deriving (Show, Eq)
+    deriving (Show, Eq, Ord)
+data Color = Black | White
+    deriving (Show, Eq, Ord)
 
 -- TODO: Some bit-compression function for board state to handle threefold repetition.
 
 -- | The full game state, including board state, which player's turn is next, the number of half
 -- moves since the last capture or pawn advance, and the full move count.
-data Game = Game { board :: Board, toMove :: PieceColor, halfMoveClock :: Int, fullMoveCount :: Int }
+data Game = Game { board :: Board, toMove :: Color, halfMoveClock :: Int, fullMoveCount :: Int }
 
 -- | Get the color whose turn is next given the color that moved.
-nextTurn :: PieceColor -> PieceColor
+nextTurn :: Color -> Color
 nextTurn White = Black
 nextTurn Black = White
 
 -- | The range of the chess board indices, for use in functions like 'array'.
 boardRange :: (BoardIx, BoardIx)
 boardRange = ((1, 1), (8, 8))
+
+-- | Get the color of a square on the board, used for describing bishop colors.
+squareColor :: BoardIx -> Color
+squareColor (column, row) = if column + row `mod` 2 == 0 then Black else White
 
 -- | A board with no pieces on it.
 emptyBoard :: Board
@@ -81,6 +98,30 @@ defaultBoard =
     whitePieces = starters White 1 starterPieces
     blackPawns  = starters Black 7 pawns
     whitePawns  = starters White 2 pawns
+
+-- | Return the material on board, as a tuple of white material and black material.
+getMaterial :: Board -> (Set PieceType, Set PieceType)
+getMaterial brd =
+    ( Set.fromList . map pieceType $ whitePieces
+    , Set.fromList . map pieceType $ blackPieces
+    )
+  where
+    (whitePieces, blackPieces) =
+        List.partition ((== White) . pieceColor) allPieces
+    allPieces = catMaybes . elems $ brd
+
+-- | Return the colors of all the bishops owned by white and all the bishops owned by black.
+getBishopColors :: Board -> (Set Color, Set Color)
+getBishopColors brd =
+    (Set.fromList whiteBishopColors, Set.fromList blackBishopColors)
+  where
+    whiteBishopColors =
+        [ squareColor ix | (ix, mPiece) <- assocs brd, isBishopOf White mPiece ]
+    blackBishopColors =
+        [ squareColor ix | (ix, mPiece) <- assocs brd, isBishopOf Black mPiece ]
+    isBishopOf color = maybe
+        False
+        (\piece -> pieceColor piece == color && pieceType piece == Bishop)
 
 -- | An initial game state for normal chess.
 startGame :: Game
