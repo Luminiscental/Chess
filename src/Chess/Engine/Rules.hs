@@ -1,9 +1,16 @@
 module Chess.Engine.Rules
-    ()
+    ( TieCause(..)
+    , GameResult(..)
+    , TerminationRule
+    , fiftyMoveTie
+    , insufficientMaterialTie
+    , doubleBishopTie
+    , anyTie
+    )
 where
 
-import           Control.Monad                  ( guard )
 import qualified Data.Set                      as Set
+import           Data.Maybe                     ( listToMaybe )
 import           Chess.Engine.State             ( Game
                                                 , Color
                                                 , PieceType(..)
@@ -54,3 +61,7 @@ doubleBishopTie game = if justBishops && sameColors
         whiteMaterial == bishopMaterial && blackMaterial == bishopMaterial
     (whiteBishopColors, blackBishopColors) = getBishopColors gameBoard
     sameColors = whiteBishopColors == blackBishopColors
+
+anyTie :: TerminationRule
+anyTie game = mapM ($ game) tieRules >>= listToMaybe
+    where tieRules = [fiftyMoveTie, insufficientMaterialTie, doubleBishopTie]

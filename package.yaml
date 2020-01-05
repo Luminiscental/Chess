@@ -12,6 +12,8 @@ tests:
     - Chess
 maintainer: luminiscental01@gmail.com
 dependencies:
+- tasty
+- tasty-hunit
 - containers
 - array
 - base >= 4.7 && < 5

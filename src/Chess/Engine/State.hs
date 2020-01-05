@@ -5,8 +5,10 @@ module Chess.Engine.State
     , Piece(..)
     , PieceType(..)
     , Color(..)
+    , squareColor
     , nextTurn
     , stepGame
+    , makeGame
     , startGame
     , boardRange
     , emptyBoard
@@ -66,7 +68,7 @@ boardRange = ((1, 1), (8, 8))
 
 -- | Get the color of a square on the board, used for describing bishop colors.
 squareColor :: BoardIx -> Color
-squareColor (column, row) = if column + row `mod` 2 == 0 then Black else White
+squareColor (column, row) = if (column + row) `mod` 2 == 0 then Black else White
 
 -- | A board with no pieces on it.
 emptyBoard :: Board
@@ -123,13 +125,17 @@ getBishopColors brd =
         False
         (\piece -> pieceColor piece == color && pieceType piece == Bishop)
 
+-- | Create a game given starting board and the player with first turn.
+makeGame :: Board -> Color -> Game
+makeGame brd firstMove = Game { board         = brd
+                              , toMove        = firstMove
+                              , halfMoveClock = 0
+                              , fullMoveCount = 0
+                              }
+
 -- | An initial game state for normal chess.
 startGame :: Game
-startGame = Game { board         = defaultBoard
-                 , toMove        = White
-                 , halfMoveClock = 0
-                 , fullMoveCount = 0
-                 }
+startGame = makeGame defaultBoard White
 
 stepGame
     :: Game -- ^ Initial game state
