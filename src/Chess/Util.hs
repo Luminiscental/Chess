@@ -18,5 +18,6 @@ mkArray :: (Ix a) => (a -> b) -> (a, a) -> Array a b
 mkArray mkElem ixRange =
     array ixRange [ (ix, mkElem ix) | ix <- range ixRange ]
 
+-- | Utility to convert a 'String' to a 'ByteString'.
 packString :: String -> ByteString
 packString = ByteString.pack . map (fromIntegral . Char.ord)

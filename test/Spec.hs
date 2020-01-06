@@ -28,12 +28,15 @@ import           Chess.Engine.Rules             ( insufficientMaterialTie
                                                 , threeFoldRepetitionTie
                                                 , anyTie
                                                 )
+import           Chess.Engine.Moves             ( Move(..)
+                                                , applyMove
+                                                )
 
 main :: IO ()
 main = defaultMain tests
 
 tests :: TestTree
-tests = testGroup "Tests" [stateTests, ruleTests]
+tests = testGroup "Tests" [stateTests, ruleTests, moveTests]
 
 stateTests :: TestTree
 stateTests = testGroup
@@ -96,3 +99,12 @@ ruleTests = testGroup
         White
     repeatTie =
         stepGame defaultBoard False . stepGame defaultBoard False $ startGame
+
+moveTests :: TestTree
+moveTests = testGroup
+    "Moves"
+    [ testCase "Move application"
+      $   applyMove Move { movesFrom = (3, 4), movesTo = (5, 7) }
+                    (emptyBoard // [((3, 4), Just $ Piece Pawn White True)])
+      @?= (emptyBoard // [((5, 7), Just $ Piece Pawn White True)])
+    ]
