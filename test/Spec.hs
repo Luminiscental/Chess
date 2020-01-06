@@ -29,7 +29,10 @@ import           Chess.Engine.Rules             ( insufficientMaterialTie
                                                 , anyTie
                                                 )
 import           Chess.Engine.Moves             ( Move(..)
+                                                , MoveRule
                                                 , applyMove
+                                                , applyMoveRule
+                                                , moveRuleFor
                                                 )
 
 main :: IO ()
