@@ -13,15 +13,19 @@ import           Chess.Engine.State             ( Color(..)
                                                 , Piece(..)
                                                 , makeGame
                                                 , startGame
+                                                , stepGame
                                                 , emptyBoard
                                                 , defaultBoard
                                                 , squareColor
+                                                , pieceFEN
+                                                , boardFEN
                                                 , nextTurn
                                                 , getMaterial
                                                 , getBishopColors
                                                 )
 import           Chess.Engine.Rules             ( insufficientMaterialTie
                                                 , doubleBishopTie
+                                                , threeFoldRepetitionTie
                                                 , anyTie
                                                 )
 
@@ -36,6 +40,10 @@ stateTests = testGroup
     "State"
     [ testCase "Next turn" $ nextTurn White @?= Black
     , testCase "Square colors" $ squareColor (3, 4) @?= White
+    , testCase "Piece FEN" $ pieceFEN White Knight @?= 'N'
+    , testCase "Board FEN"
+    $   boardFEN (defaultBoard // [((4, 5), Just $ Piece King Black False)])
+    @?= "rnbqkbnr/pppppppp/8/3k4/8/8/PPPPPPPP/RNBQKBNR"
     , testCase "Board setup" $ defaultBoard ! (5, 1) @?= Just
         (Piece King White False)
     , testCase "Board material"
@@ -61,6 +69,9 @@ ruleTests = testGroup
     , testCase "Double bishop"
     $  isJust (doubleBishopTie bishopTie)
     @? "Tie state should be detected"
+    , testCase "Threefold repetition"
+    $  isJust (threeFoldRepetitionTie repeatTie)
+    @? "Tie state should be detected"
     , testCase "No tie"
     $  isNothing (anyTie startGame)
     @? "There should be no tie"
@@ -83,3 +94,5 @@ ruleTests = testGroup
            ]
         )
         White
+    repeatTie =
+        stepGame defaultBoard False . stepGame defaultBoard False $ startGame

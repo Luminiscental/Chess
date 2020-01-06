@@ -7,6 +7,8 @@ module Chess.Engine.State
     , Color(..)
     , squareColor
     , nextTurn
+    , pieceFEN
+    , boardFEN
     , stepGame
     , makeGame
     , startGame
@@ -18,26 +20,29 @@ module Chess.Engine.State
     )
 where
 
-import           Data.Maybe                     ( catMaybes )
+import           Chess.Util                     ( mkArray
+                                                , packString
+                                                )
+
+import           Data.ByteString                ( ByteString )
+import qualified Data.ByteString               as ByteString
+import           Data.Maybe                     ( catMaybes
+                                                , isNothing
+                                                )
+import qualified Data.Char                     as Char
 import qualified Data.List                     as List
 import           Data.Set                       ( Set )
 import qualified Data.Set                      as Set
 
-import           Data.Array.IArray              ( Ix
-                                                , Array
+import           Data.Array.IArray              ( Array
                                                 , elems
                                                 , assocs
-                                                , array
                                                 , range
                                                 , (//)
+                                                , (!)
                                                 )
 
 -- TODO: PGN, FEN, EPD import/export functions
-
--- | Utility function to make an array given a function from index to value.
-mkArray :: (Ix a) => (a -> b) -> (a, a) -> Array a b
-mkArray mkElem ixRange =
-    array ixRange [ (ix, mkElem ix) | ix <- range ixRange ]
 
 -- | The board is represented as an array of 'Maybe Piece'.
 type Board = Array BoardIx (Maybe Piece)
@@ -51,11 +56,43 @@ data PieceType = Pawn | Rook | Knight | Bishop | Queen | King
 data Color = Black | White
     deriving (Show, Eq, Ord)
 
--- TODO: Some bit-compression function for board state to handle threefold repetition.
-
 -- | The full game state, including board state, which player's turn is next, the number of half
 -- moves since the last capture or pawn advance, and the full move count.
-data Game = Game { board :: Board, toMove :: Color, halfMoveClock :: Int, fullMoveCount :: Int }
+data Game = Game { board :: Board, toMove :: Color, halfMoveClock :: Int, fullMoveCount :: Int, prevBoardFENs :: [ByteString] }
+    deriving (Show, Eq)
+
+-- | Get the FEN notation for a piece.
+pieceFEN :: Color -> PieceType -> Char
+pieceFEN color = if color == White
+    then Char.toUpper . getLowerFEN
+    else getLowerFEN
+  where
+    getLowerFEN Pawn   = 'p'
+    getLowerFEN Rook   = 'r'
+    getLowerFEN Knight = 'n'
+    getLowerFEN Bishop = 'b'
+    getLowerFEN Queen  = 'q'
+    getLowerFEN King   = 'k'
+
+
+-- | Get the FEN notation for piece placement on a board.
+boardFEN :: Board -> String
+boardFEN brd = List.intercalate "/" rows
+  where
+    rows =
+        [ displayRow . map (brd !) $ range ((1, row), (8, row))
+        | row <- reverse [1 .. 8]
+        ]
+    displayRow []                  = ""
+    displayRow (Just piece : rest) = pieceFEN pCol pTyp : displayRow rest
+      where
+        pCol = pieceColor piece
+        pTyp = pieceType piece
+    displayRow (Nothing : rest) = Char.intToDigit blankCount : afterBlanks
+      where
+        (empties, afterEmpties) = span isNothing rest
+        blankCount              = 1 + length empties
+        afterBlanks             = displayRow afterEmpties
 
 -- | Get the color whose turn is next given the color that moved.
 nextTurn :: Color -> Color
@@ -68,7 +105,8 @@ boardRange = ((1, 1), (8, 8))
 
 -- | Get the color of a square on the board, used for describing bishop colors.
 squareColor :: BoardIx -> Color
-squareColor (column, row) = if (column + row) `mod` 2 == 0 then Black else White
+squareColor (column, row) =
+    if (column + row) `mod` 2 == 0 then Black else White
 
 -- | A board with no pieces on it.
 emptyBoard :: Board
@@ -131,6 +169,7 @@ makeGame brd firstMove = Game { board         = brd
                               , toMove        = firstMove
                               , halfMoveClock = 0
                               , fullMoveCount = 0
+                              , prevBoardFENs = []
                               }
 
 -- | An initial game state for normal chess.
@@ -138,11 +177,11 @@ startGame :: Game
 startGame = makeGame defaultBoard White
 
 stepGame
-    :: Game -- ^ Initial game state
-    -> Board -- ^ New board state
+    :: Board -- ^ New board state
     -> Bool -- ^ Whether a capture / pawn move occured
+    -> Game -- ^ Initial game state
     -> Game -- ^ New game state
-stepGame oldGame newBoard resetHalfMoveClock = Game
+stepGame newBoard resetHalfMoveClock oldGame = Game
     { board         = newBoard
     , toMove        = nextTurn movePlayer
     , halfMoveClock = if resetHalfMoveClock
@@ -151,6 +190,8 @@ stepGame oldGame newBoard resetHalfMoveClock = Game
     , fullMoveCount = case movePlayer of
                           White -> oldFullMoveCount
                           Black -> oldFullMoveCount + 1
+    , prevBoardFENs = (packString . boardFEN . board $ oldGame)
+                          : prevBoardFENs oldGame
     }
   where
     movePlayer       = toMove oldGame

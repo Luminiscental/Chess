@@ -5,17 +5,19 @@ module Chess.Engine.Rules
     , fiftyMoveTie
     , insufficientMaterialTie
     , doubleBishopTie
+    , threeFoldRepetitionTie
     , anyTie
     )
 where
 
+import           Chess.Util                     ( packString )
+
 import qualified Data.Set                      as Set
 import           Data.Maybe                     ( listToMaybe )
-import           Chess.Engine.State             ( Game
+import           Chess.Engine.State             ( Game(..)
                                                 , Color
                                                 , PieceType(..)
-                                                , board
-                                                , halfMoveClock
+                                                , boardFEN
                                                 , getMaterial
                                                 , getBishopColors
                                                 )
@@ -62,6 +64,22 @@ doubleBishopTie game = if justBishops && sameColors
     (whiteBishopColors, blackBishopColors) = getBishopColors gameBoard
     sameColors = whiteBishopColors == blackBishopColors
 
+threeFoldRepetitionTie :: TerminationRule
+threeFoldRepetitionTie game = if countRepetitions >= 3
+    then Just $ Tie ThreefoldRepetition
+    else Nothing
+  where
+    countRepetitions =
+        (+ 1) . length . filter (== currFEN) $ prevBoardFENs game
+    currFEN = packString . boardFEN . board $ game
+
+-- TODO: Implement stalemate rule
 anyTie :: TerminationRule
 anyTie game = mapM ($ game) tieRules >>= listToMaybe
-    where tieRules = [fiftyMoveTie, insufficientMaterialTie, doubleBishopTie]
+  where
+    tieRules =
+        [ fiftyMoveTie
+        , insufficientMaterialTie
+        , doubleBishopTie
+        , threeFoldRepetitionTie
+        ]
