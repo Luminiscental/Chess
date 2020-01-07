@@ -49,7 +49,7 @@ type Board = Array BoardIx (Maybe Piece)
 -- | The board is indexed by '(column, row)' pairs, from (1, 1) to (8, 8) inclusive.
 type BoardIx = (Int, Int)
 -- | Each piece stores its type and color along with whether it has moved.
-data Piece = Piece { pieceType :: PieceType, pieceColor :: Color, hasMoved :: Bool }
+data Piece = Piece { pieceType :: PieceType, pieceColor :: Color, hasMoved :: Bool, enPassantTarget :: Bool }
     deriving (Show, Eq)
 data PieceType = Pawn | Rook | Knight | Bishop | Queen | King
     deriving (Show, Eq, Ord)
@@ -127,9 +127,10 @@ defaultBoard =
   where
     starters color row typeList =
         [ ( (col, row)
-          , Just Piece { pieceType  = pieceType
-                       , pieceColor = color
-                       , hasMoved   = False
+          , Just Piece { pieceType       = pieceType
+                       , pieceColor      = color
+                       , hasMoved        = False
+                       , enPassantTarget = False
                        }
           )
         | (col, pieceType) <- zip [1 ..] typeList
