@@ -26,6 +26,8 @@ import           Data.Maybe                     ( mapMaybe
                                                 , fromMaybe
                                                 )
 
+-- TODO: Checks; hard pin and suicide rules.
+
 -- | A 'Move' record contains the start, end, and possible capture location of a move, including
 -- any side effect moves for castling and an updating function to apply to the moved piece.
 data Move = Move { movesFrom :: BoardIx
@@ -110,9 +112,45 @@ pieceRule piece = case pieceType piece of
         , enPassant color left
         , enPassant color right
         ]
+    Rook ->
+        concatMoveRules
+            $  map lineOfSightMove    gridLines
+            ++ map lineOfSightCapture gridLines
+    Knight ->
+        concatMoveRules
+            $  map jumpMove    knightOffsets
+            ++ map jumpCapture knightOffsets
+    Bishop ->
+        concatMoveRules
+            $  map lineOfSightMove    diagonalLines
+            ++ map lineOfSightCapture diagonalLines
+    Queen ->
+        concatMoveRules
+            $  map lineOfSightMove    queenLines
+            ++ map lineOfSightCapture queenLines
+    King ->
+        concatMoveRules
+            $  map jumpMove    queenLines
+            ++ map jumpCapture queenLines
+            ++ [castleQueenSide, castleKingSide]
   where
-    color         = pieceColor piece
+    xor           = (/=)
     (left, right) = (-1, 1)
+    color         = pieceColor piece
+    gridLines =
+        [ (dirx, diry)
+        | dirx <- [-1 .. 1]
+        , diry <- [-1 .. 1]
+        , (dirx /= 0) `xor` (diry /= 0)
+        ]
+    diagonalLines =
+        [ (dirx, diry)
+        | dirx <- [-1 .. 1]
+        , diry <- [-1 .. 1]
+        , (dirx /= 0) && (diry /= 0)
+        ]
+    knightOffsets = [ (dirx, diry) | dirx <- [-1, 1], diry <- [-2, 2] ]
+    queenLines    = gridLines ++ diagonalLines
 
 pawnDirection :: Color -> (Int, Int)
 pawnDirection White = (0, 1)
@@ -141,3 +179,9 @@ enPassant color dx board (sx, sy) = [ passingMove | canPass ]
         enPassantTarget
         (board ! target)
     passingMove = withCaptureAt target $ moveFrom (sx, sy) end
+
+castleKingSide :: MoveRule
+castleKingSide = undefined
+
+castleQueenSide :: MoveRule
+castleQueenSide = undefined
