@@ -1,129 +1,143 @@
 module Chess.Engine.Moves
     ( Move(..)
     , MoveRule
-    , applyMove
+    , concatMoveRules
+    , availableMoves
+    , nthMove
+    , updateWith
+    , pieceRule
     )
 where
 
 import           Chess.Engine.State             ( Board
                                                 , BoardIx
+                                                , Game(..)
                                                 , Piece(..)
                                                 , PieceType(..)
+                                                , Color(..)
                                                 , boardRange
                                                 )
-import           Data.Array.IArray              ( (//)
-                                                , (!)
+import           Data.Array.IArray              ( (!)
+                                                , assocs
                                                 , inRange
                                                 )
-import           Data.Maybe                     ( isNothing
-                                                , fromJust
+import           Data.Maybe                     ( mapMaybe
+                                                , isNothing
+                                                , fromMaybe
                                                 )
 
--- TODO: Castling
--- TODO: Reset enPassantTarget in some update loop.
--- TODO: General utilities to list available moves in a position.
--- TODO: Move rules for all pieces, including capture moves.
--- TODO: How can this flip nicely for playing as black while including side-effects/predicates?
+-- | A 'Move' record contains the start, end, and possible capture location of a move, including
+-- any side effect moves for castling and an updating function to apply to the moved piece.
+data Move = Move { movesFrom :: BoardIx
+                 , movesTo :: BoardIx
+                 , updater :: Piece -> Piece
+                 , captures :: Maybe BoardIx
+                 , sideEffect :: Maybe Move }
 
--- | A representation of a move solely as the location before and after the move.
-data Move = Move { movesFrom :: BoardIx, movesTo :: BoardIx, postMove :: Board -> Board }
-
--- | A 'MoveRule' gives a list of possible moves from a given board position.
+-- | A 'MoveRule' generates a list of possible moves from a given position on the board.
 type MoveRule = Board -> BoardIx -> [Move]
 
--- | Apply a move to a board. Any piece at the target location is discarded.
-applyMove :: Move -> Board -> Board
-applyMove move board = post $ board // [(from, Nothing), (to, piece)]
-  where
-    post  = postMove move
-    from  = movesFrom move
-    to    = movesTo move
-    piece = updatePiece <$> board ! from
-    updatePiece p = p { hasMoved = True }
-
--- | Create a simple move rule given a piece updater and a function to generate target locations.
-simpleMoveRule
-    :: (Piece -> Piece) -> (Board -> BoardIx -> [BoardIx]) -> MoveRule
-simpleMoveRule pieceUpdater targetLister board start =
-    [ Move { movesFrom = start, movesTo = target, postMove = updateAt target }
-    | target <- targetLister board start
-    ]
-    where updateAt pos board = board // [(pos, pieceUpdater <$> board ! pos)]
-
--- | Default piece updater, which simply sets 'hasMoved' to 'True'.
-defaultPieceUpdater :: Piece -> Piece
-defaultPieceUpdater piece = piece { hasMoved = True }
-
--- | Utility function for creating a capture post-move.
-takeAt :: BoardIx -> Board -> Board
-takeAt pos = (// [(pos, Nothing)])
-
--- | Add a capture to a move rule.
-withCapture :: BoardIx -> MoveRule -> MoveRule
-withCapture target rule board start =
-    [ move { postMove = takeAt target . postMove move }
-    | move <- rule board start
-    ]
-
--- | Combine a list of move rules into a single rule that allows all of them.
+-- | Concatenate a list of move rules into one move rule that allows all of them.
 concatMoveRules :: [MoveRule] -> MoveRule
-concatMoveRules rules board start = concatMap (($ start) . ($ board)) rules
+concatMoveRules rules board pos = concatMap (\rule -> rule board pos) rules
 
--- | Create a move rule that only applies if a predicate is satisfied.
-conditionalMoveRule :: (Board -> BoardIx -> Bool) -> MoveRule -> MoveRule
-conditionalMoveRule pred rule board start =
-    if pred board start then rule board start else []
-
--- | Check if a position is valid to move to without taking anything.
-validMoveTarget :: Board -> BoardIx -> Bool
-validMoveTarget board ix = inRange boardRange ix && isNothing (board ! ix)
-
--- | Get target locations along a line of sight given an offset to shift by.
-lineTargets :: (Int, Int) -> (Board -> BoardIx -> [BoardIx])
-lineTargets (dx, dy) board (startx, starty) = takeWhile
-    (validMoveTarget board)
-    [ (startx + n * dx, starty + n * dy) | n <- [1 ..] ]
-
--- | Get target locations of a fixed range along a line of sight given an offset to shift by. 
-pushTargets :: Int -> (Int, Int) -> (Board -> BoardIx -> [BoardIx])
-pushTargets range offset board =
-    take 1 . drop (range - 1) . lineTargets offset board
-
--- | Get target locations to jump to given a jump offset.
-jumpTargets :: (Int, Int) -> (Board -> BoardIx -> [BoardIx])
-jumpTargets (dx, dy) board (startx, starty) =
-    filter (validMoveTarget board) [(startx + dx, starty + dy)]
-
--- | The predicate for a pawn being able to jump by 2 squares.
-canLeap :: Board -> BoardIx -> Bool
-canLeap board pos = maybe False (not . hasMoved) (board ! pos)
-
--- | The predicate for a pawn being able to take en passant for a given x-offset.
-canPassant :: Int -> Board -> BoardIx -> Bool
-canPassant xdir board (pawnx, pawny) = inRange boardRange targetPos
-    && maybe False enPassantTarget (board ! targetPos)
-    where targetPos = (pawnx + xdir, pawny)
-
--- | Create a move rule to capture en passant for a given x-offset.
-passantMoveRule :: Int -> MoveRule
-passantMoveRule xdir board (pawnx, pawny) = return $ Move
-    { movesFrom = (pawnx, pawny)
-    , movesTo   = (pawnx + xdir, pawny + 1)
-    , postMove  = takeAt (pawnx + xdir, pawny)
-    }
-
--- | The move rule for a pawn.
-pawnRule :: MoveRule
-pawnRule = concatMoveRules
-    [normalPawnMove, pawnLeap, enPassant left, enPassant right]
+-- | List the available moves for the current player in a game.
+availableMoves :: Game -> [Move]
+availableMoves game = concat . mapMaybe movesAt . assocs $ brd
   where
-    normalPawnMove = simpleMoveRule defaultPieceUpdater normalTargets
-    pawnLeap =
-        conditionalMoveRule canLeap (simpleMoveRule leapUpdater leapTargets)
-    enPassant xdir =
-        conditionalMoveRule (canPassant xdir) (passantMoveRule xdir)
-    leapUpdater piece = piece { hasMoved = True, enPassantTarget = True }
-    normalTargets = pushTargets 1 (0, 1)
-    leapTargets   = pushTargets 2 (0, 1)
-    left          = -1
-    right         = 1
+    brd = board game
+    movesAt (pos, square) = pieceMoves pos <$> square
+    pieceMoves pos piece = pieceRule piece brd pos
+
+-- | Only allow the nth move given by an initial move rule.
+nthMove :: Int -> MoveRule -> MoveRule
+nthMove n rule = fmap (take 1 . drop (n - 1)) . rule
+
+-- | Append a piece updater to each move.
+updateWith :: (Piece -> Piece) -> MoveRule -> MoveRule
+updateWith pieceUpdater rule = fmap (map moveUpdater) . rule
+    where moveUpdater move = move { updater = pieceUpdater . updater move }
+
+moveFrom :: BoardIx -> BoardIx -> Move
+moveFrom start end = Move { movesFrom  = start
+                          , movesTo    = end
+                          , updater    = \piece -> piece { hasMoved = True }
+                          , captures   = Nothing
+                          , sideEffect = Nothing
+                          }
+
+withCaptureAt :: BoardIx -> Move -> Move
+withCaptureAt pos move = move { captures = Just pos }
+
+captureFrom :: BoardIx -> BoardIx -> Move
+captureFrom start end = withCaptureAt end $ moveFrom start end
+
+validSquare :: BoardIx -> Bool
+validSquare = inRange boardRange
+
+emptySquareOn :: Board -> BoardIx -> Bool
+emptySquareOn board pos = isNothing $ board ! pos
+
+lineOfSightMove :: (Int, Int) -> MoveRule
+lineOfSightMove (dx, dy) board (sx, sy) =
+    map (moveFrom (sx, sy))
+        . takeWhile (emptySquareOn board)
+        . takeWhile validSquare
+        $ [ (sx + n * dx, sy + n * dy) | n <- [1 ..] ]
+
+lineOfSightCapture :: (Int, Int) -> MoveRule
+lineOfSightCapture (dx, dy) board (sx, sy) =
+    map (captureFrom (sx, sy))
+        . take 1
+        . dropWhile (emptySquareOn board)
+        . takeWhile validSquare
+        $ [ (sx + n * dx, sy + n * dy) | n <- [1 ..] ]
+
+jumpMove :: (Int, Int) -> MoveRule
+jumpMove = nthMove 1 . lineOfSightMove
+
+jumpCapture :: (Int, Int) -> MoveRule
+jumpCapture = nthMove 1 . lineOfSightMove
+
+-- | Get the move rule that applies to a given piece.
+pieceRule :: Piece -> MoveRule
+pieceRule piece = case pieceType piece of
+    Pawn -> concatMoveRules
+        [ pawnStep color
+        , pawnLeap color
+        , pawnCapture color left
+        , pawnCapture color right
+        , enPassant color left
+        , enPassant color right
+        ]
+  where
+    color         = pieceColor piece
+    (left, right) = (-1, 1)
+
+pawnDirection :: Color -> (Int, Int)
+pawnDirection White = (0, 1)
+pawnDirection Black = (0, -1)
+
+pawnStep :: Color -> MoveRule
+pawnStep = nthMove 1 . lineOfSightMove . pawnDirection
+
+pawnLeap :: Color -> MoveRule
+pawnLeap =
+    updateWith setPassantTarget . nthMove 2 . lineOfSightMove . pawnDirection
+    where setPassantTarget piece = piece { enPassantTarget = True }
+
+pawnCapture :: Color -> Int -> MoveRule
+pawnCapture color dx = jumpCapture (directionx + dx, directiony)
+    where (directionx, directiony) = pawnDirection color
+
+enPassant :: Color -> Int -> MoveRule
+enPassant color dx board (sx, sy) = [ passingMove | canPass ]
+  where
+    (directionx, directiony) = pawnDirection color
+    target                   = (sx + dx, sy)
+    end                      = (sx + dx + directionx, sy + directiony)
+    canPass                  = validSquare end && validSquare target && maybe
+        False
+        enPassantTarget
+        (board ! target)
+    passingMove = withCaptureAt target $ moveFrom (sx, sy) end
