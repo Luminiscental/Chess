@@ -55,6 +55,11 @@ availableMoves game = concat . mapMaybe movesAt . assocs $ brd
 nthMove :: Int -> MoveRule -> MoveRule
 nthMove n rule = fmap (take 1 . drop (n - 1)) . rule
 
+-- | Only allow moves if a piece predicate is satisfied.
+onlyWhen :: (Piece -> Bool) -> MoveRule -> MoveRule
+onlyWhen pred rule board pos =
+    if maybe False pred (board ! pos) then rule board pos else []
+
 -- | Append a piece updater to each move.
 updateWith :: (Piece -> Piece) -> MoveRule -> MoveRule
 updateWith pieceUpdater rule = fmap (map moveUpdater) . rule
@@ -161,7 +166,11 @@ pawnStep = nthMove 1 . lineOfSightMove . pawnDirection
 
 pawnLeap :: Color -> MoveRule
 pawnLeap =
-    updateWith setPassantTarget . nthMove 2 . lineOfSightMove . pawnDirection
+    onlyWhen (not . hasMoved)
+        . updateWith setPassantTarget
+        . nthMove 2
+        . lineOfSightMove
+        . pawnDirection
     where setPassantTarget piece = piece { enPassantTarget = True }
 
 pawnCapture :: Color -> Int -> MoveRule

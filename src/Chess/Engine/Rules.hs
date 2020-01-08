@@ -22,6 +22,8 @@ import           Chess.Engine.State             ( Game(..)
                                                 , getBishopColors
                                                 )
 
+-- TODO: Implement Win/checkmate rule, and a general isFinished :: Game -> Maybe GameResult
+
 data TieCause = FiftyMoveRule | Stalemate | ThreefoldRepetition | CheckmateImpossible deriving (Show, Eq)
 
 -- | An ADT for possible results of a game.
