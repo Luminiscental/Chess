@@ -11,22 +11,27 @@ where
 
 import           Chess.Engine.State             ( Board
                                                 , BoardIx
-                                                , Game(..)
                                                 , Piece(..)
                                                 , PieceType(..)
                                                 , Color(..)
                                                 , boardRange
+                                                , nextTurn
                                                 )
 import           Data.Array.IArray              ( (!)
+                                                , (//)
                                                 , assocs
                                                 , inRange
                                                 )
 import           Data.Maybe                     ( mapMaybe
                                                 , isNothing
                                                 , fromMaybe
+                                                , fromJust
+                                                , listToMaybe
                                                 )
+import           Control.Monad                  ( mfilter )
 
 -- TODO: Checks; hard pin and suicide rules.
+-- TODO: Pawn promotion.
 
 -- | A 'Move' record contains the start, end, and possible capture location of a move, including
 -- any side effect moves for castling and an updating function to apply to the moved piece.
@@ -39,17 +44,33 @@ data Move = Move { movesFrom :: BoardIx
 -- | A 'MoveRule' generates a list of possible moves from a given position on the board.
 type MoveRule = Board -> BoardIx -> [Move]
 
+-- | Check whether a square is threatened by a piece of a given color.
+squareThreatened :: Color -> Board -> BoardIx -> Bool
+squareThreatened color board pos = any threatens $ availableMoves color board
+    where threatens move = captures move == Just pos
+
+-- | Check whether the piece at a given position is pinned to its king.
+pinned :: BoardIx -> Board -> Bool
+pinned pos board = fromMaybe False $ do
+    piece <- board ! pos
+    let color             = pieceColor piece
+        enemyColor        = nextTurn color
+        boardWithoutPiece = board // [(pos, Nothing)]
+        isKing            = maybe False ((== King) . pieceType)
+    kingPosition <- fst <$> (listToMaybe . filter (isKing . snd) . assocs) board
+    return $ squareThreatened enemyColor boardWithoutPiece kingPosition
+
 -- | Concatenate a list of move rules into one move rule that allows all of them.
 concatMoveRules :: [MoveRule] -> MoveRule
 concatMoveRules rules board pos = concatMap (\rule -> rule board pos) rules
 
--- | List the available moves for the current player in a game.
-availableMoves :: Game -> [Move]
-availableMoves game = concat . mapMaybe movesAt . assocs $ brd
+-- | List the available moves for a given color on a board.
+availableMoves :: Color -> Board -> [Move]
+availableMoves color board = concat . mapMaybe movesAt . assocs $ board
   where
-    brd = board game
-    movesAt (pos, square) = pieceMoves pos <$> square
-    pieceMoves pos piece = pieceRule piece brd pos
+    movesAt (pos, square) =
+        pieceMoves pos <$> mfilter ((== color) . pieceColor) square
+    pieceMoves pos piece = pieceRule piece board pos
 
 -- | Only allow the nth move given by an initial move rule.
 nthMove :: Int -> MoveRule -> MoveRule
