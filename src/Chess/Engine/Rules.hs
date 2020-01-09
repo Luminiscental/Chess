@@ -24,6 +24,7 @@ import           Chess.Engine.State             ( Game(..)
 
 -- TODO: Implement Win/checkmate rule, and a general isFinished :: Game -> Maybe GameResult
 
+-- | An enumeration of the possible causes of a tie.
 data TieCause = FiftyMoveRule | Stalemate | ThreefoldRepetition | CheckmateImpossible deriving (Show, Eq)
 
 -- | An ADT for possible results of a game.
@@ -66,6 +67,7 @@ doubleBishopTie game = if justBishops && sameColors
     (whiteBishopColors, blackBishopColors) = getBishopColors gameBoard
     sameColors = whiteBishopColors == blackBishopColors
 
+-- | Draw if the same board state is seen three times.
 threeFoldRepetitionTie :: TerminationRule
 threeFoldRepetitionTie game = if countRepetitions >= 3
     then Just $ Tie ThreefoldRepetition
@@ -76,6 +78,7 @@ threeFoldRepetitionTie game = if countRepetitions >= 3
     currFEN = packString . boardFEN . board $ game
 
 -- TODO: Implement stalemate rule
+-- | Termination rule that checks for any possible tie.
 anyTie :: TerminationRule
 anyTie game = mapM ($ game) tieRules >>= listToMaybe
   where

@@ -23,7 +23,6 @@ where
 import           Chess.Util                     ( mkArray
                                                 , packString
                                                 )
-
 import           Data.ByteString                ( ByteString )
 import qualified Data.ByteString               as ByteString
 import           Data.Maybe                     ( catMaybes
@@ -33,7 +32,6 @@ import qualified Data.Char                     as Char
 import qualified Data.List                     as List
 import           Data.Set                       ( Set )
 import qualified Data.Set                      as Set
-
 import           Data.Array.IArray              ( Array
                                                 , elems
                                                 , assocs
@@ -44,20 +42,29 @@ import           Data.Array.IArray              ( Array
 
 -- TODO: PGN, FEN, EPD import/export functions
 
--- | The board is represented as an array of 'Maybe Piece'.
+-- | The board is represented as an array of 'Maybe' 'Piece'.
 type Board = Array BoardIx (Maybe Piece)
--- | The board is indexed by '(column, row)' pairs, from (1, 1) to (8, 8) inclusive.
+
+-- | The board is indexed by @(column, row)@ pairs, from @(1, 1)@ to @(8, 8)@ inclusive. A board
+-- index is then a representation of a square on the board, e.g. a3 is @(1, 3)@.
 type BoardIx = (Int, Int)
--- | Each piece stores its type and color along with whether it has moved.
+
+-- | Each piece stores its type and color along with whether it has moved and whether it is a
+-- possible target for capturing en passant.
 data Piece = Piece { pieceType :: PieceType, pieceColor :: Color, hasMoved :: Bool, enPassantTarget :: Bool }
     deriving (Show, Eq)
+
+-- | An enumeration of the different types of 'Piece'.
 data PieceType = Pawn | Rook | Knight | Bishop | Queen | King
     deriving (Show, Eq, Ord)
+
+-- | An enumeration of the two player colors.
 data Color = Black | White
     deriving (Show, Eq, Ord)
 
 -- | The full game state, including board state, which player's turn is next, the number of half
--- moves since the last capture or pawn advance, and the full move count.
+-- moves since the last capture or pawn advance, the full move count, and a record of previously
+-- seen board states encoded as FEN notation.
 data Game = Game { board :: Board, toMove :: Color, halfMoveClock :: Int, fullMoveCount :: Int, prevBoardFENs :: [ByteString] }
     deriving (Show, Eq)
 
@@ -74,8 +81,8 @@ pieceFEN color = if color == White
     getLowerFEN Queen  = 'q'
     getLowerFEN King   = 'k'
 
-
--- | Get the FEN notation for piece placement on a board.
+-- | Get the FEN notation for a given board state, only including piece placements, not the
+-- additional metadata.
 boardFEN :: Board -> String
 boardFEN brd = List.intercalate "/" rows
   where
@@ -99,7 +106,7 @@ nextTurn :: Color -> Color
 nextTurn White = Black
 nextTurn Black = White
 
--- | The range of the chess board indices, for use in functions like 'array'.
+-- | The range of valid chess board indices.
 boardRange :: (BoardIx, BoardIx)
 boardRange = ((1, 1), (8, 8))
 
@@ -185,6 +192,7 @@ makeGame brd firstMove = Game { board         = brd
 startGame :: Game
 startGame = makeGame defaultBoard White
 
+-- | Update the game given the new board state after a move.
 stepGame
     :: Board -- ^ New board state
     -> Bool -- ^ Whether a capture / pawn move occured

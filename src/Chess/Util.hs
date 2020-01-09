@@ -13,7 +13,7 @@ import           Data.Array.IArray              ( Ix
                                                 , range
                                                 )
 
--- | Utility to make an array given a function from index to value.
+-- | Utility to make an 'Array' given a function from index to value.
 mkArray :: (Ix a) => (a -> b) -> (a, a) -> Array a b
 mkArray mkElem ixRange =
     array ixRange [ (ix, mkElem ix) | ix <- range ixRange ]
