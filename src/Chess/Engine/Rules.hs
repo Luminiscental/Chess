@@ -11,7 +11,6 @@ module Chess.Engine.Rules
 where
 
 import           Chess.Util                     ( packString )
-
 import qualified Data.Set                      as Set
 import           Data.Maybe                     ( listToMaybe )
 import           Chess.Engine.State             ( Game(..)
@@ -21,8 +20,9 @@ import           Chess.Engine.State             ( Game(..)
                                                 , getMaterial
                                                 , getBishopColors
                                                 )
+import           Chess.Engine.Moves             ( availableMoves )
 
--- TODO: Implement Win/checkmate rule, and a general isFinished :: Game -> Maybe GameResult
+-- TODO: Implement anyWin and isFinished termination rules.
 
 -- | An enumeration of the possible causes of a tie.
 data TieCause = FiftyMoveRule | Stalemate | ThreefoldRepetition | CheckmateImpossible deriving (Show, Eq)
@@ -77,7 +77,11 @@ threeFoldRepetitionTie game = if countRepetitions >= 3
         (+ 1) . length . filter (== currFEN) $ prevBoardFENs game
     currFEN = packString . boardFEN . board $ game
 
--- TODO: Implement stalemate rule
+-- | Draw if there are no available moves to the current player.
+stalemateTie :: TerminationRule
+stalemateTie game =
+    if null $ availableMoves game then Just $ Tie Stalemate else Nothing
+
 -- | Termination rule that checks for any possible tie.
 anyTie :: TerminationRule
 anyTie game = mapM ($ game) tieRules >>= listToMaybe
@@ -87,4 +91,5 @@ anyTie game = mapM ($ game) tieRules >>= listToMaybe
         , insufficientMaterialTie
         , doubleBishopTie
         , threeFoldRepetitionTie
+        , stalemateTie
         ]

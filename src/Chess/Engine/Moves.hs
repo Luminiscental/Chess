@@ -4,6 +4,7 @@ module Chess.Engine.Moves
     , applyMove
     , squareThreatenedBy
     , existsCheckAgainst
+    , movesFromColor
     , availableMoves
     , pieceRule
     )
@@ -11,6 +12,7 @@ where
 
 import           Chess.Engine.State             ( Board
                                                 , BoardIx
+                                                , Game(..)
                                                 , Piece(..)
                                                 , PieceType(..)
                                                 , Color(..)
@@ -41,14 +43,14 @@ data Move = Move { movesFrom :: BoardIx
                  , captures :: Maybe BoardIx
                  , sideEffect :: Maybe Move }
 
--- | A 'MoveRule' generates a list of possible moves from a given position on the board.
+-- | A 'MoveRule' generates a list of possible moves from a given position on the brd.
 type MoveRule = Board -> BoardIx -> [Move]
 
 -- | Apply a 'Move' to a 'Board'.
 applyMove :: Move -> Board -> Board
-applyMove move board = postMove $ board // changes
+applyMove move brd = postMove $ brd // changes
   where
-    piece    = board ! movesFrom move
+    piece    = brd ! movesFrom move
     postMove = maybe id applyMove $ sideEffect move
     changes =
         [(movesFrom move, Nothing), (movesTo move, updater move <$> piece)]
@@ -56,33 +58,37 @@ applyMove move board = postMove $ board // changes
 -- | Check whether a square is threatened by a piece of a given color.
 squareThreatenedBy
     :: Color -- ^ The player to check for threats from
-    -> Board -- ^ The board state
+    -> Board -- ^ The brd state
     -> BoardIx -- ^ The square to check for threats to
     -> Bool
-squareThreatenedBy color board pos = any threatens $ availableMoves color board
+squareThreatenedBy color brd pos = any threatens $ movesFromColor color brd
     where threatens move = captures move == Just pos
 
--- | Check if there is a check on board against a given color.
+-- | Check if there is a check on brd against a given color.
 existsCheckAgainst :: Color -> Board -> Bool
-existsCheckAgainst color board =
+existsCheckAgainst color brd =
     let enemy = nextTurn color
         pieceIsKing piece =
                 pieceType piece == King && pieceColor piece == color
         squareIsKing  = maybe False pieceIsKing
-        kingPositions = map fst . filter (squareIsKing . snd) $ assocs board
+        kingPositions = map fst . filter (squareIsKing . snd) $ assocs brd
     in  fromMaybe False $ do
             kingPosition <- listToMaybe kingPositions
-            return $ squareThreatenedBy enemy board kingPosition
+            return $ squareThreatenedBy enemy brd kingPosition
 
--- | List the available moves for a given color on a board.
-availableMoves :: Color -> Board -> [Move]
-availableMoves color board =
-    filter noCheck . concat . mapMaybe movesAt . assocs $ board
+-- | List the available moves to the current player.
+availableMoves :: Game -> [Move]
+availableMoves = movesFromColor <$> toMove <*> board
+
+-- | List the available moves to a given player on the board.
+movesFromColor :: Color -> Board -> [Move]
+movesFromColor color brd =
+    filter noCheck . concat . mapMaybe movesAt . assocs $ brd
   where
     movesAt (pos, square) =
         pieceMoves pos <$> mfilter ((== color) . pieceColor) square
-    pieceMoves pos piece = pieceRule piece board pos
-    noCheck move = not . existsCheckAgainst color $ applyMove move board
+    pieceMoves pos piece = pieceRule piece brd pos
+    noCheck move = not . existsCheckAgainst color $ applyMove move brd
 
 -- | Get the move rule that applies to a given piece.
 pieceRule :: Piece -> MoveRule
@@ -136,14 +142,14 @@ pieceRule piece = case pieceType piece of
     queenLines    = gridLines ++ diagonalLines
 
 concatMoveRules :: [MoveRule] -> MoveRule
-concatMoveRules rules board pos = concatMap (\rule -> rule board pos) rules
+concatMoveRules rules brd pos = concatMap (\rule -> rule brd pos) rules
 
 nthMove :: Int -> MoveRule -> MoveRule
 nthMove n rule = fmap (take 1 . drop (n - 1)) . rule
 
 onlyWhen :: (Piece -> Bool) -> MoveRule -> MoveRule
-onlyWhen pred rule board pos =
-    if maybe False pred (board ! pos) then rule board pos else []
+onlyWhen pred rule brd pos =
+    if maybe False pred (brd ! pos) then rule brd pos else []
 
 updateWith :: (Piece -> Piece) -> MoveRule -> MoveRule
 updateWith pieceUpdater rule = fmap (map moveUpdater) . rule
@@ -167,20 +173,20 @@ validSquare :: BoardIx -> Bool
 validSquare = inRange boardRange
 
 emptySquareOn :: Board -> BoardIx -> Bool
-emptySquareOn board pos = isNothing $ board ! pos
+emptySquareOn brd pos = isNothing $ brd ! pos
 
 lineOfSightMove :: (Int, Int) -> MoveRule
-lineOfSightMove (dx, dy) board (sx, sy) =
+lineOfSightMove (dx, dy) brd (sx, sy) =
     map (moveFrom (sx, sy))
-        . takeWhile (emptySquareOn board)
+        . takeWhile (emptySquareOn brd)
         . takeWhile validSquare
         $ [ (sx + n * dx, sy + n * dy) | n <- [1 ..] ]
 
 lineOfSightCapture :: (Int, Int) -> MoveRule
-lineOfSightCapture (dx, dy) board (sx, sy) =
+lineOfSightCapture (dx, dy) brd (sx, sy) =
     map (captureFrom (sx, sy))
         . take 1
-        . dropWhile (emptySquareOn board)
+        . dropWhile (emptySquareOn brd)
         . takeWhile validSquare
         $ [ (sx + n * dx, sy + n * dy) | n <- [1 ..] ]
 
@@ -211,7 +217,7 @@ pawnCapture color dx = jumpCapture (directionx + dx, directiony)
     where (directionx, directiony) = pawnDirection color
 
 enPassant :: Color -> Int -> MoveRule
-enPassant color dx board (sx, sy) = [ passingMove | canPass ]
+enPassant color dx brd (sx, sy) = [ passingMove | canPass ]
   where
     (directionx, directiony) = pawnDirection color
     target                   = (sx + dx, sy)
@@ -219,7 +225,7 @@ enPassant color dx board (sx, sy) = [ passingMove | canPass ]
     canPass                  = validSquare end && validSquare target && maybe
         False
         enPassantTarget
-        (board ! target)
+        (brd ! target)
     passingMove = withCaptureAt target $ moveFrom (sx, sy) end
 
 -- TODO: Implement castling move rules.
