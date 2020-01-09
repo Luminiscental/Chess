@@ -4,6 +4,7 @@ module Chess.Engine.Moves
     , applyMove
     , squareThreatenedBy
     , existsCheckAgainst
+    , checkToAddress
     , availableMoves
     , pieceRule
     )
@@ -73,6 +74,13 @@ existsCheckAgainst color brd =
         squareIsKing  = maybe False pieceIsKing
         kingPositions = map fst . filter (squareIsKing . snd) $ assocs brd
     in  any (squareThreatenedBy enemy brd) kingPositions
+
+-- | Check if there is a check that the current player needs to address.
+checkToAddress :: Game -> Bool
+checkToAddress game = existsCheckAgainst color brd
+  where
+    color = toMove game
+    brd   = board game
 
 -- | List the available legal moves to the current player.
 availableMoves :: Game -> [Move]

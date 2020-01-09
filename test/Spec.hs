@@ -115,6 +115,8 @@ ruleTests = testGroup
         )
         Black
 
+-- TODO: More move tests, e.g. different pieces, moves vs. captures, and castling / en passant.
+
 moveTests :: TestTree
 moveTests = testGroup
     "Moves"

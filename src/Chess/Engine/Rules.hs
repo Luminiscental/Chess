@@ -21,7 +21,9 @@ import           Chess.Engine.State             ( Game(..)
                                                 , getMaterial
                                                 , getBishopColors
                                                 )
-import           Chess.Engine.Moves             ( availableMoves )
+import           Chess.Engine.Moves             ( availableMoves
+                                                , checkToAddress
+                                                )
 
 -- TODO: Implement anyWin and isFinished termination rules.
 
@@ -80,8 +82,9 @@ threeFoldRepetitionTie game = if countRepetitions >= 3
 
 -- | Draw if there are no available moves to the current player.
 stalemateTie :: TerminationRule
-stalemateTie game =
-    if null $ availableMoves game then Just $ Tie Stalemate else Nothing
+stalemateTie game = if not (checkToAddress game) && null (availableMoves game)
+    then Just $ Tie Stalemate
+    else Nothing
 
 -- | Termination rule that checks for any possible tie.
 anyTie :: TerminationRule
