@@ -6,6 +6,7 @@ module Chess.Engine.Rules
     , insufficientMaterialTie
     , doubleBishopTie
     , threeFoldRepetitionTie
+    , stalemateTie
     , anyTie
     )
 where

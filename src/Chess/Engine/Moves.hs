@@ -4,7 +4,6 @@ module Chess.Engine.Moves
     , applyMove
     , squareThreatenedBy
     , existsCheckAgainst
-    , movesFromColor
     , availableMoves
     , pieceRule
     )
@@ -55,7 +54,8 @@ applyMove move brd = postMove $ brd // changes
     changes =
         [(movesFrom move, Nothing), (movesTo move, updater move <$> piece)]
 
--- | Check whether a square is threatened by a piece of a given color.
+-- | Check whether a square is threatened by a piece of a given color, returning @True@ even if the
+-- only threatening pieces are pinned.
 squareThreatenedBy
     :: Color -- ^ The player to check for threats from
     -> Board -- ^ The brd state
@@ -72,23 +72,24 @@ existsCheckAgainst color brd =
                 pieceType piece == King && pieceColor piece == color
         squareIsKing  = maybe False pieceIsKing
         kingPositions = map fst . filter (squareIsKing . snd) $ assocs brd
-    in  fromMaybe False $ do
-            kingPosition <- listToMaybe kingPositions
-            return $ squareThreatenedBy enemy brd kingPosition
+    in  any (squareThreatenedBy enemy brd) kingPositions
 
--- | List the available moves to the current player.
+-- | List the available legal moves to the current player.
 availableMoves :: Game -> [Move]
-availableMoves = movesFromColor <$> toMove <*> board
+availableMoves game = filter noCheck $ movesFromColor color brd
+  where
+    color = toMove game
+    brd   = board game
+    noCheck move = not . existsCheckAgainst color $ applyMove move brd
 
--- | List the available moves to a given player on the board.
+-- | List the available moves to a given player on the board, without disallowing moves that leave
+-- the player in check.
 movesFromColor :: Color -> Board -> [Move]
-movesFromColor color brd =
-    filter noCheck . concat . mapMaybe movesAt . assocs $ brd
+movesFromColor color brd = concat . mapMaybe movesAt . assocs $ brd
   where
     movesAt (pos, square) =
         pieceMoves pos <$> mfilter ((== color) . pieceColor) square
     pieceMoves pos piece = pieceRule piece brd pos
-    noCheck move = not . existsCheckAgainst color $ applyMove move brd
 
 -- | Get the move rule that applies to a given piece.
 pieceRule :: Piece -> MoveRule

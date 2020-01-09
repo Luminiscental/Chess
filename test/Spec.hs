@@ -26,13 +26,12 @@ import           Chess.Engine.State             ( Color(..)
 import           Chess.Engine.Rules             ( insufficientMaterialTie
                                                 , doubleBishopTie
                                                 , threeFoldRepetitionTie
+                                                , stalemateTie
                                                 , anyTie
                                                 )
 import           Chess.Engine.Moves             ( Move(..)
                                                 , MoveRule
                                                 , applyMove
-                                                , applyMoveRule
-                                                , moveRuleFor
                                                 )
 
 main :: IO ()
@@ -48,10 +47,10 @@ stateTests = testGroup
     , testCase "Square colors" $ squareColor (3, 4) @?= White
     , testCase "Piece FEN" $ pieceFEN White Knight @?= 'N'
     , testCase "Board FEN"
-    $   boardFEN (defaultBoard // [((4, 5), Just $ Piece King Black False)])
+    $ boardFEN (defaultBoard // [((4, 5), Just $ Piece King Black False False)])
     @?= "rnbqkbnr/pppppppp/8/3k4/8/8/PPPPPPPP/RNBQKBNR"
     , testCase "Board setup" $ defaultBoard ! (5, 1) @?= Just
-        (Piece King White False)
+        (Piece King White False False)
     , testCase "Board material"
     $   getMaterial testBoard
     @?= (Set.fromList [Bishop], Set.fromList [King])
@@ -62,8 +61,8 @@ stateTests = testGroup
   where
     testBoard =
         emptyBoard
-            // [ ((3, 3), Just $ Piece Bishop White True)
-               , ((4, 7), Just $ Piece King Black True)
+            // [ ((3, 3), Just $ Piece Bishop White True False)
+               , ((4, 7), Just $ Piece King Black True False)
                ]
 
 ruleTests :: TestTree
@@ -78,6 +77,9 @@ ruleTests = testGroup
     , testCase "Threefold repetition"
     $  isJust (threeFoldRepetitionTie repeatTie)
     @? "Tie state should be detected"
+    , testCase "Stalemate"
+    $  isJust (stalemateTie stalemate)
+    @? "Tie state should be detected"
     , testCase "No tie"
     $  isNothing (anyTie startGame)
     @? "There should be no tie"
@@ -85,29 +87,45 @@ ruleTests = testGroup
   where
     materialTie = makeGame
         (  emptyBoard
-        // [ ((2, 3), Just $ Piece King White True)
-           , ((5, 5), Just $ Piece King Black True)
-           , ((7, 1), Just $ Piece Bishop White True)
+        // [ ((2, 3), Just $ Piece King White True False)
+           , ((5, 5), Just $ Piece King Black True False)
+           , ((7, 1), Just $ Piece Bishop White True False)
            ]
         )
         Black
     bishopTie = makeGame
         (  emptyBoard
-        // [ ((4, 8), Just $ Piece King Black True)
-           , ((7, 7), Just $ Piece King White True)
-           , ((4, 1), Just $ Piece Bishop Black True)
-           , ((7, 6), Just $ Piece Bishop White True)
+        // [ ((4, 8), Just $ Piece King Black True False)
+           , ((7, 7), Just $ Piece King White True False)
+           , ((4, 1), Just $ Piece Bishop Black True False)
+           , ((7, 6), Just $ Piece Bishop White True False)
            ]
         )
         White
     repeatTie =
         stepGame defaultBoard False . stepGame defaultBoard False $ startGame
+    stalemate = makeGame
+        (  emptyBoard
+        // [ ((6, 8), Just $ Piece King Black True False)
+           , ((6, 7), Just $ Piece Pawn White True False)
+           , ((6, 6), Just $ Piece King White True False)
+           , ((1, 1), Just $ Piece Pawn Black True False)
+           , ((1, 2), Just $ Piece Pawn White True False)
+           ]
+        )
+        Black
 
 moveTests :: TestTree
 moveTests = testGroup
     "Moves"
     [ testCase "Move application"
-      $   applyMove Move { movesFrom = (3, 4), movesTo = (5, 7) }
-                    (emptyBoard // [((3, 4), Just $ Piece Pawn White True)])
-      @?= (emptyBoard // [((5, 7), Just $ Piece Pawn White True)])
+      $   applyMove
+              Move { movesFrom  = (3, 4)
+                   , movesTo    = (5, 7)
+                   , updater    = \piece -> piece { hasMoved = True }
+                   , captures   = Nothing
+                   , sideEffect = Nothing
+                   }
+              (emptyBoard // [((3, 4), Just $ Piece Pawn White False False)])
+      @?= (emptyBoard // [((5, 7), Just $ Piece Pawn White True False)])
     ]
