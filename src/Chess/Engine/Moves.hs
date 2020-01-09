@@ -232,7 +232,7 @@ enPassant color dx brd (sx, sy) = [ passingMove | canPass ]
 -- TODO: Implement castling move rules.
 
 castleKingSide :: MoveRule
-castleKingSide = undefined
+castleKingSide = error "Castling unimplemented"
 
 castleQueenSide :: MoveRule
-castleQueenSide = undefined
+castleQueenSide = error "Castling unimplemented"
