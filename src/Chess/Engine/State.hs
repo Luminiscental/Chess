@@ -140,6 +140,14 @@ defaultBoard =
     blackPawns  = starters Black 7 pawns
     whitePawns  = starters White 2 pawns
 
+-- | Reset en passant captures against a color.
+resetEnPassant :: Color -> Board -> Board
+resetEnPassant color = (fmap . fmap) resetPiece
+  where
+    resetPiece piece = if pieceColor piece == color
+        then piece { enPassantTarget = False }
+        else piece
+
 -- | Return the material on board, as a tuple of white material and black material.
 getMaterial :: Board -> (Set PieceType, Set PieceType)
 getMaterial brd =
