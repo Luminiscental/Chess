@@ -62,7 +62,8 @@ squareThreatenedBy
     -> Board -- ^ The brd state
     -> BoardIx -- ^ The square to check for threats to
     -> Bool
-squareThreatenedBy color brd pos = any threatens $ movesFromColor color brd
+squareThreatenedBy color brd pos = any threatens
+    $ movesFromColorUnchecked color brd
     where threatens move = captures move == Just pos
 
 -- | Check if there is a check on brd against a given color.
@@ -84,16 +85,17 @@ checkToAddress game = existsCheckAgainst color brd
 
 -- | List the available legal moves to the current player.
 availableMoves :: Game -> [Move]
-availableMoves game = filter noCheck $ movesFromColor color brd
-  where
-    color = toMove game
-    brd   = board game
-    noCheck move = not . existsCheckAgainst color $ applyMove move brd
+availableMoves = movesFromColor <$> toMove <*> board
+
+-- | List the available legal moves to a given player on the board.
+movesFromColor :: Color -> Board -> [Move]
+movesFromColor color brd = filter noCheck $ movesFromColorUnchecked color brd
+    where noCheck move = not . existsCheckAgainst color $ applyMove move brd
 
 -- | List the available moves to a given player on the board, without disallowing moves that leave
 -- the player in check.
-movesFromColor :: Color -> Board -> [Move]
-movesFromColor color brd = concat . mapMaybe movesAt . assocs $ brd
+movesFromColorUnchecked :: Color -> Board -> [Move]
+movesFromColorUnchecked color brd = concat . mapMaybe movesAt . assocs $ brd
   where
     movesAt (pos, square) =
         pieceMoves pos <$> mfilter ((== color) . pieceColor) square
