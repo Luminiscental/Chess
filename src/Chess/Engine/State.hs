@@ -199,8 +199,8 @@ stepGame
     -> Game -- ^ Initial game state
     -> Game -- ^ New game state
 stepGame newBoard resetHalfMoveClock oldGame = Game
-    { board         = newBoard
-    , toMove        = nextTurn movePlayer
+    { board         = resetEnPassant nextPlayer newBoard
+    , toMove        = nextPlayer
     , halfMoveClock = if resetHalfMoveClock
                           then 0
                           else halfMoveClock oldGame + 1
@@ -212,4 +212,5 @@ stepGame newBoard resetHalfMoveClock oldGame = Game
     }
   where
     movePlayer       = toMove oldGame
+    nextPlayer       = nextTurn movePlayer
     oldFullMoveCount = fullMoveCount oldGame
