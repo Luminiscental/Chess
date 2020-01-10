@@ -10,6 +10,9 @@ module Chess.Engine.Moves
     )
 where
 
+import           Chess.Util                     ( rangeExclusive
+                                                , rangeInclusive
+                                                )
 import           Chess.Engine.State             ( Board
                                                 , BoardIx
                                                 , Game(..)
@@ -29,8 +32,11 @@ import           Data.Maybe                     ( mapMaybe
                                                 , fromMaybe
                                                 , fromJust
                                                 , listToMaybe
+                                                , isJust
                                                 )
-import           Control.Monad                  ( mfilter )
+import           Control.Monad                  ( mfilter
+                                                , guard
+                                                )
 
 -- TODO: Pawn promotion.
 
@@ -132,7 +138,7 @@ pieceRule piece = case pieceType piece of
         concatMoveRules
             $  map jumpMove    queenLines
             ++ map jumpCapture queenLines
-            ++ [castleQueenSide, castleKingSide]
+            ++ [castleMoveRule left, castleMoveRule right]
   where
     xor           = (/=)
     (left, right) = (-1, 1)
@@ -159,8 +165,9 @@ nthMove :: Int -> MoveRule -> MoveRule
 nthMove n rule = fmap (take 1 . drop (n - 1)) . rule
 
 onlyWhen :: (Piece -> Bool) -> MoveRule -> MoveRule
-onlyWhen pred rule brd pos =
-    if maybe False pred (brd ! pos) then rule brd pos else []
+onlyWhen pred rule brd pos = do
+    guard $ maybe False pred (brd ! pos)
+    rule brd pos
 
 updateWith :: (Piece -> Piece) -> MoveRule -> MoveRule
 updateWith pieceUpdater rule = fmap (map moveUpdater) . rule
@@ -176,6 +183,9 @@ moveFrom start end = Move { movesFrom  = start
 
 withCaptureAt :: BoardIx -> Move -> Move
 withCaptureAt pos move = move { captures = Just pos }
+
+withSideEffect :: Move -> Move -> Move
+withSideEffect effect move = move { sideEffect = Just effect }
 
 captureFrom :: BoardIx -> BoardIx -> Move
 captureFrom start end = withCaptureAt end $ moveFrom start end
@@ -239,10 +249,25 @@ enPassant color dx brd (sx, sy) = [ passingMove | canPass ]
         (brd ! target)
     passingMove = withCaptureAt target $ moveFrom (sx, sy) end
 
--- TODO: Implement castling move rules.
-
-castleKingSide :: MoveRule
-castleKingSide = error "Castling unimplemented"
-
-castleQueenSide :: MoveRule
-castleQueenSide = error "Castling unimplemented"
+castleMoveRule :: Int -> MoveRule
+castleMoveRule kingDirX brd (kingX, kingY) = do
+    guard . not $ kingMoved || rookMoved || piecesBlocking || movesThroughCheck
+    return castleMove
+  where
+    kingMoved         = hasMoved kingPiece
+    rookMoved         = hasMoved rookPiece
+    piecesBlocking    = any (isJust . (brd !)) betweenSquares
+    movesThroughCheck = any (squareThreatenedBy enemy brd) kingTravelSquares
+    castleMove        = withSideEffect rookMove kingMove
+    (rookX, rookY)    = last $ takeWhile
+        validSquare
+        [ (kingX + n * kingDirX, kingY) | n <- [1 ..] ]
+    betweenSquares    = [ (x, kingY) | x <- rangeExclusive kingX rookX ]
+    kingTravelSquares = [ (x, kingY) | x <- rangeInclusive kingX kingTargetX ]
+    kingMove          = moveFrom (kingX, kingY) (kingTargetX, kingY)
+    rookMove          = moveFrom (rookX, kingY) (rookTargetX, kingY)
+    rookTargetX       = kingX + kingDirX
+    kingTargetX       = rookTargetX + kingDirX
+    kingPiece         = fromJust $ brd ! (kingX, kingY)
+    rookPiece         = fromJust $ brd ! (rookX, rookY)
+    enemy             = nextTurn . pieceColor $ kingPiece
