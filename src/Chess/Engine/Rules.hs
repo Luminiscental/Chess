@@ -14,6 +14,7 @@ where
 import           Chess.Util                     ( packString )
 import qualified Data.Set                      as Set
 import           Data.Maybe                     ( listToMaybe )
+import           Data.Foldable                  ( asum )
 import           Chess.Engine.State             ( Game(..)
                                                 , Color
                                                 , PieceType(..)
@@ -89,7 +90,7 @@ stalemateTie game =
 
 -- | Termination rule that checks for any possible tie.
 anyTie :: TerminationRule
-anyTie game = mapM ($ game) tieRules >>= listToMaybe
+anyTie game = asum [ rule game | rule <- tieRules ]
   where
     tieRules =
         [ fiftyMoveTie
