@@ -28,7 +28,7 @@ import           Chess.Engine.Moves             ( availableMoves
 -- TODO: Implement anyWin and isFinished termination rules.
 
 -- | An enumeration of the possible causes of a tie.
-data TieCause = FiftyMoveRule | Stalemate | ThreefoldRepetition | CheckmateImpossible deriving (Show, Eq)
+data TieCause = FiftyMoveRule | Stalemate | ThreefoldRepetition | InsufficientMaterial deriving (Show, Eq)
 
 -- | An ADT for possible results of a game.
 data GameResult = Win Color | Tie TieCause deriving (Show, Eq)
@@ -44,7 +44,7 @@ fiftyMoveTie game =
 -- | Draw if there is an insufficient material imbalance for someone to checkmate.
 insufficientMaterialTie :: TerminationRule
 insufficientMaterialTie game = if gameMaterial `elem` materialStates
-    then Just $ Tie CheckmateImpossible
+    then Just $ Tie InsufficientMaterial
     else Nothing
   where
     materialStates =
@@ -59,7 +59,7 @@ insufficientMaterialTie game = if gameMaterial `elem` materialStates
 -- | Draw if both sides have the same color bishop and no other pieces.
 doubleBishopTie :: TerminationRule
 doubleBishopTie game = if justBishops && sameColors
-    then Just $ Tie CheckmateImpossible
+    then Just $ Tie InsufficientMaterial
     else Nothing
   where
     gameBoard                      = board game
