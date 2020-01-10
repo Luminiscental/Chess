@@ -1,11 +1,17 @@
 module Chess.Engine.Moves
     ( Move(..)
+    , Action(..)
     , MoveRule
+    , ActionRule
+    , noCaptures
     , applyMove
+    , applyAction
     , squareThreatenedBy
     , existsCheckAgainst
     , checkToAddress
-    , availableMoves
+    , availableActions
+    , actionsForColor
+    , actionsForColorUnchecked
     , pieceRule
     )
 where
@@ -40,17 +46,25 @@ import           Control.Monad                  ( mfilter
 
 -- TODO: Pawn promotion.
 
--- | A 'Move' record contains the start, end, and possible capture location of a move, including
--- any side effect moves for castling and an updating function to apply to the moved piece. The
--- 'sideEffect' field is used to store additional moves that occur simultaneously, e.g. when castling.
+-- | A 'Move' record contains the start and end locations of a move, including any side effect
+-- moves for castling, and an updating function to apply to the moved piece.
 data Move = Move { movesFrom :: BoardIx
                  , movesTo :: BoardIx
                  , updater :: Piece -> Piece
-                 , captures :: Maybe BoardIx
                  , sideEffect :: Maybe Move }
 
--- | A 'MoveRule' generates a list of possible moves from a given position on the brd.
+-- | An 'Action' represents a 'Move' with metadata about where and whether a capture occurs.
+data Action = NoCapture Move | Capture BoardIx Move
+
+-- | A 'MoveRule' generates a list of possible moves from a given position on the board.
 type MoveRule = Board -> BoardIx -> [Move]
+
+-- | An 'ActionRule' generates a list of possible actions from a given position on the board.
+type ActionRule = Board -> BoardIx -> [Action]
+
+-- | Convert a 'MoveRule' to an 'ActionRule' by assuming no move is a 'Capture'.
+noCaptures :: MoveRule -> ActionRule
+noCaptures moveRule board start = map NoCapture $ moveRule board start
 
 -- | Apply a 'Move' to a 'Board'.
 applyMove :: Move -> Board -> Board
@@ -61,18 +75,28 @@ applyMove move brd = postMove $ brd // changes
     changes =
         [(movesFrom move, Nothing), (movesTo move, updater move <$> piece)]
 
+-- | Apply an 'Action' to a 'Board'.
+applyAction :: Action -> Board -> Board
+applyAction (NoCapture move ) board = applyMove move board
+applyAction (Capture at move) board = applyMove move $ board // [(at, Nothing)]
+
 -- | Check whether a square is threatened by a piece of a given color, returning @True@ even if the
 -- only threatening pieces are pinned.
 squareThreatenedBy
     :: Color -- ^ The player to check for threats from
-    -> Board -- ^ The brd state
+    -> Board -- ^ The board state
     -> BoardIx -- ^ The square to check for threats to
     -> Bool
 squareThreatenedBy color brd pos = any threatens
-    $ movesFromColorUnchecked color brd
-    where threatens move = captures move == Just pos
+    $ actionsForColorUnchecked color boardWithTarget
+  where
+    boardWithTarget = brd // [(pos, Just $ Piece Pawn otherColor False False)]
+    otherColor      = nextTurn color
+    threatens action = case action of
+        Capture at _ -> at == pos
+        _            -> False
 
--- | Check if there is a check on brd against a given color.
+-- | Check if there is a check on board against a given color.
 existsCheckAgainst :: Color -> Board -> Bool
 existsCheckAgainst color brd =
     let enemy = nextTurn color
@@ -90,27 +114,28 @@ checkToAddress game = existsCheckAgainst color brd
     brd   = board game
 
 -- | List the available legal moves to the current player.
-availableMoves :: Game -> [Move]
-availableMoves = movesFromColor <$> toMove <*> board
+availableActions :: Game -> [Action]
+availableActions = actionsForColor <$> toMove <*> board
 
 -- | List the available legal moves to a given player on the board.
-movesFromColor :: Color -> Board -> [Move]
-movesFromColor color brd = filter noCheck $ movesFromColorUnchecked color brd
-    where noCheck move = not . existsCheckAgainst color $ applyMove move brd
+actionsForColor :: Color -> Board -> [Action]
+actionsForColor color brd = filter noCheck $ actionsForColorUnchecked color brd
+  where
+    noCheck action = not . existsCheckAgainst color $ applyAction action brd
 
 -- | List the available moves to a given player on the board, without disallowing moves that leave
 -- the player in check.
-movesFromColorUnchecked :: Color -> Board -> [Move]
-movesFromColorUnchecked color brd = concat . mapMaybe movesAt . assocs $ brd
+actionsForColorUnchecked :: Color -> Board -> [Action]
+actionsForColorUnchecked color brd = concat . mapMaybe movesAt . assocs $ brd
   where
     movesAt (pos, square) =
         pieceMoves pos <$> mfilter ((== color) . pieceColor) square
     pieceMoves pos piece = pieceRule piece brd pos
 
--- | Get the move rule that applies to a given piece.
-pieceRule :: Piece -> MoveRule
+-- | Get the 'ActionRule' that applies to a given piece.
+pieceRule :: Piece -> ActionRule
 pieceRule piece = case pieceType piece of
-    Pawn -> concatMoveRules
+    Pawn -> concatActionRules
         [ pawnStep color
         , pawnLeap color
         , pawnCapture color left
@@ -119,26 +144,26 @@ pieceRule piece = case pieceType piece of
         , enPassant color right
         ]
     Rook ->
-        concatMoveRules
-            $  map lineOfSightMove    gridLines
-            ++ map lineOfSightCapture gridLines
+        concatActionRules
+            $  map lineOfSightMoveAction gridLines
+            ++ map lineOfSightCapture    gridLines
     Knight ->
-        concatMoveRules
+        concatActionRules
             $  map jumpMove    knightOffsets
             ++ map jumpCapture knightOffsets
     Bishop ->
-        concatMoveRules
-            $  map lineOfSightMove    diagonalLines
-            ++ map lineOfSightCapture diagonalLines
+        concatActionRules
+            $  map lineOfSightMoveAction diagonalLines
+            ++ map lineOfSightCapture    diagonalLines
     Queen ->
-        concatMoveRules
-            $  map lineOfSightMove    queenLines
-            ++ map lineOfSightCapture queenLines
+        concatActionRules
+            $  map lineOfSightMoveAction queenLines
+            ++ map lineOfSightCapture    queenLines
     King ->
-        concatMoveRules
+        concatActionRules
             $  map jumpMove    queenLines
             ++ map jumpCapture queenLines
-            ++ [castleMoveRule left, castleMoveRule right]
+            ++ [castleActionRule left, castleActionRule right]
   where
     xor           = (/=)
     (left, right) = (-1, 1)
@@ -158,11 +183,11 @@ pieceRule piece = case pieceType piece of
     knightOffsets = [ (dirx, diry) | dirx <- [-1, 1], diry <- [-2, 2] ]
     queenLines    = gridLines ++ diagonalLines
 
-concatMoveRules :: [MoveRule] -> MoveRule
-concatMoveRules rules brd pos = concatMap (\rule -> rule brd pos) rules
+concatActionRules :: [ActionRule] -> ActionRule
+concatActionRules rules brd pos = concatMap (\rule -> rule brd pos) rules
 
-nthMove :: Int -> MoveRule -> MoveRule
-nthMove n rule = fmap (take 1 . drop (n - 1)) . rule
+nthAction :: Int -> ActionRule -> ActionRule
+nthAction n rule = fmap (take 1 . drop (n - 1)) . rule
 
 onlyWhen :: (Piece -> Bool) -> MoveRule -> MoveRule
 onlyWhen pred rule brd pos = do
@@ -173,22 +198,18 @@ updateWith :: (Piece -> Piece) -> MoveRule -> MoveRule
 updateWith pieceUpdater rule = fmap (map moveUpdater) . rule
     where moveUpdater move = move { updater = pieceUpdater . updater move }
 
+withSideEffect :: Move -> Move -> Move
+withSideEffect effect move = move { sideEffect = Just effect }
+
 moveFrom :: BoardIx -> BoardIx -> Move
 moveFrom start end = Move { movesFrom  = start
                           , movesTo    = end
                           , updater    = \piece -> piece { hasMoved = True }
-                          , captures   = Nothing
                           , sideEffect = Nothing
                           }
 
-withCaptureAt :: BoardIx -> Move -> Move
-withCaptureAt pos move = move { captures = Just pos }
-
-withSideEffect :: Move -> Move -> Move
-withSideEffect effect move = move { sideEffect = Just effect }
-
-captureFrom :: BoardIx -> BoardIx -> Move
-captureFrom start end = withCaptureAt end $ moveFrom start end
+captureFrom :: BoardIx -> BoardIx -> Action
+captureFrom start end = Capture end $ moveFrom start end
 
 validSquare :: BoardIx -> Bool
 validSquare = inRange boardRange
@@ -203,7 +224,10 @@ lineOfSightMove (dx, dy) brd (sx, sy) =
         . takeWhile validSquare
         $ [ (sx + n * dx, sy + n * dy) | n <- [1 ..] ]
 
-lineOfSightCapture :: (Int, Int) -> MoveRule
+lineOfSightMoveAction :: (Int, Int) -> ActionRule
+lineOfSightMoveAction = noCaptures . lineOfSightMove
+
+lineOfSightCapture :: (Int, Int) -> ActionRule
 lineOfSightCapture (dx, dy) brd (sx, sy) =
     map (captureFrom (sx, sy))
         . take 1
@@ -211,34 +235,37 @@ lineOfSightCapture (dx, dy) brd (sx, sy) =
         . takeWhile validSquare
         $ [ (sx + n * dx, sy + n * dy) | n <- [1 ..] ]
 
-jumpMove :: (Int, Int) -> MoveRule
-jumpMove = nthMove 1 . lineOfSightMove
+jumpMove :: (Int, Int) -> ActionRule
+jumpMove = nthAction 1 . noCaptures . lineOfSightMove
 
-jumpCapture :: (Int, Int) -> MoveRule
-jumpCapture = nthMove 1 . lineOfSightMove
+jumpCapture :: (Int, Int) -> ActionRule
+jumpCapture = nthAction 1 . lineOfSightCapture
 
 pawnDirection :: Color -> (Int, Int)
 pawnDirection White = (0, 1)
 pawnDirection Black = (0, -1)
 
-pawnStep :: Color -> MoveRule
-pawnStep = nthMove 1 . lineOfSightMove . pawnDirection
+pawnStep :: Color -> ActionRule
+pawnStep = nthAction 1 . noCaptures . lineOfSightMove . pawnDirection
 
-pawnLeap :: Color -> MoveRule
+pawnLeap :: Color -> ActionRule
 pawnLeap =
-    onlyWhen (not . hasMoved)
+    nthAction 2
+        . noCaptures
+        . onlyWhen (not . hasMoved)
         . updateWith setPassantTarget
-        . nthMove 2
         . lineOfSightMove
         . pawnDirection
     where setPassantTarget piece = piece { enPassantTarget = True }
 
-pawnCapture :: Color -> Int -> MoveRule
+pawnCapture :: Color -> Int -> ActionRule
 pawnCapture color dx = jumpCapture (directionx + dx, directiony)
     where (directionx, directiony) = pawnDirection color
 
-enPassant :: Color -> Int -> MoveRule
-enPassant color dx brd (sx, sy) = [ passingMove | canPass ]
+enPassant :: Color -> Int -> ActionRule
+enPassant color dx brd (sx, sy) = do
+    guard canPass
+    return action
   where
     (directionx, directiony) = pawnDirection color
     target                   = (sx + dx, sy)
@@ -247,15 +274,20 @@ enPassant color dx brd (sx, sy) = [ passingMove | canPass ]
         False
         enPassantTarget
         (brd ! target)
-    passingMove = withCaptureAt target $ moveFrom (sx, sy) end
+    action = Capture target $ moveFrom (sx, sy) end
+
+castleActionRule :: Int -> ActionRule
+castleActionRule = noCaptures . castleMoveRule
 
 castleMoveRule :: Int -> MoveRule
 castleMoveRule kingDirX brd (kingX, kingY) = do
     guard . not $ kingMoved || rookMoved || piecesBlocking || movesThroughCheck
     return castleMove
   where
-    kingMoved         = hasMoved kingPiece
-    rookMoved         = hasMoved rookPiece
+    kingMoved = hasMoved kingPiece
+    rookMoved = case rookSquare of
+        Just piece -> hasMoved piece || pieceType piece /= Rook
+        Nothing    -> True
     piecesBlocking    = any (isJust . (brd !)) betweenSquares
     movesThroughCheck = any (squareThreatenedBy enemy brd) kingTravelSquares
     castleMove        = withSideEffect rookMove kingMove
@@ -269,5 +301,5 @@ castleMoveRule kingDirX brd (kingX, kingY) = do
     rookTargetX       = kingX + kingDirX
     kingTargetX       = rookTargetX + kingDirX
     kingPiece         = fromJust $ brd ! (kingX, kingY)
-    rookPiece         = fromJust $ brd ! (rookX, rookY)
+    rookSquare        = brd ! (rookX, rookY)
     enemy             = nextTurn . pieceColor $ kingPiece

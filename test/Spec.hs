@@ -40,6 +40,8 @@ main = defaultMain tests
 tests :: TestTree
 tests = testGroup "Tests" [stateTests, ruleTests, moveTests]
 
+-- TODO: Test 'Game' manipulation functions
+
 stateTests :: TestTree
 stateTests = testGroup
     "State"
@@ -109,13 +111,13 @@ ruleTests = testGroup
         // [ ((6, 8), Just $ Piece King Black True False)
            , ((6, 7), Just $ Piece Pawn White True False)
            , ((6, 6), Just $ Piece King White True False)
-           , ((1, 1), Just $ Piece Pawn Black True False)
-           , ((1, 2), Just $ Piece Pawn White True False)
+           , ((1, 2), Just $ Piece Pawn Black True False)
+           , ((1, 1), Just $ Piece Pawn White True False)
            ]
         )
         Black
 
--- TODO: More move tests, e.g. different pieces, moves vs. captures, and castling / en passant.
+-- TODO: Test all exposed functions from Moves.hs
 
 moveTests :: TestTree
 moveTests = testGroup
@@ -125,7 +127,6 @@ moveTests = testGroup
               Move { movesFrom  = (3, 4)
                    , movesTo    = (5, 7)
                    , updater    = \piece -> piece { hasMoved = True }
-                   , captures   = Nothing
                    , sideEffect = Nothing
                    }
               (emptyBoard // [((3, 4), Just $ Piece Pawn White False False)])
