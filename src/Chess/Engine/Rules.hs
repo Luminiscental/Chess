@@ -2,12 +2,13 @@ module Chess.Engine.Rules
     ( TieCause(..)
     , GameResult(..)
     , TerminationRule
+    , checkmateRule
     , fiftyMoveTie
     , insufficientMaterialTie
     , doubleBishopTie
     , threeFoldRepetitionTie
     , stalemateTie
-    , anyTie
+    , anyTermination
     )
 where
 
@@ -21,12 +22,11 @@ import           Chess.Engine.State             ( Game(..)
                                                 , boardFEN
                                                 , getMaterial
                                                 , getBishopColors
+                                                , nextTurn
                                                 )
 import           Chess.Engine.Moves             ( availableActions
                                                 , checkToAddress
                                                 )
-
--- TODO: Implement anyWin and isFinished termination rules.
 
 -- | An enumeration of the possible causes of a tie.
 data TieCause = FiftyMoveRule | Stalemate | ThreefoldRepetition | InsufficientMaterial deriving (Show, Eq)
@@ -36,6 +36,13 @@ data GameResult = Win Color | Tie TieCause deriving (Show, Eq)
 
 -- | A 'TerminationRule' determines whether a game has finished, giving the result if so.
 type TerminationRule = Game -> Maybe GameResult
+
+-- | The enemy wins if the current player is in check and cannot move out of it.
+checkmateRule :: TerminationRule
+checkmateRule game = if checkToAddress game && null (availableActions game)
+    then Just $ Win enemy
+    else Nothing
+    where enemy = nextTurn (toMove game)
 
 -- | Draw if there have been 50 half moves since the last pawn move or capture.
 fiftyMoveTie :: TerminationRule
@@ -84,16 +91,16 @@ threeFoldRepetitionTie game = if countRepetitions >= 3
 -- | Draw if there are no available moves to the current player.
 stalemateTie :: TerminationRule
 stalemateTie game =
-    if not (checkToAddress game) && null (availableActions game)
-        then Just $ Tie Stalemate
-        else Nothing
+    if null (availableActions game) then Just $ Tie Stalemate else Nothing
 
--- | Termination rule that checks for any possible tie.
-anyTie :: TerminationRule
-anyTie game = asum [ rule game | rule <- tieRules ]
+-- | Termination rule that checks for any tie or win.
+anyTermination :: TerminationRule
+anyTermination game = asum $ map ($game) rules
   where
-    tieRules =
-        [ fiftyMoveTie
+    rules =
+        -- NOTE: Order matters; look for checkmate before ties
+        [ checkmateRule
+        , fiftyMoveTie
         , insufficientMaterialTie
         , doubleBishopTie
         , threeFoldRepetitionTie

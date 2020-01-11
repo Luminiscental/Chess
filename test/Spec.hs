@@ -23,11 +23,12 @@ import           Chess.Engine.State             ( Color(..)
                                                 , getMaterial
                                                 , getBishopColors
                                                 )
-import           Chess.Engine.Rules             ( insufficientMaterialTie
+import           Chess.Engine.Rules             ( checkmateRule
+                                                , insufficientMaterialTie
                                                 , doubleBishopTie
                                                 , threeFoldRepetitionTie
                                                 , stalemateTie
-                                                , anyTie
+                                                , anyTermination
                                                 )
 import           Chess.Engine.Moves             ( Move(..)
                                                 , MoveRule
@@ -70,7 +71,10 @@ stateTests = testGroup
 ruleTests :: TestTree
 ruleTests = testGroup
     "Rules"
-    [ testCase "Insufficient material"
+    [ testCase "Checkmate"
+    $  isJust (checkmateRule checkmate)
+    @? "Checkmate should be detected"
+    , testCase "Insufficient material"
     $  isJust (insufficientMaterialTie materialTie)
     @? "Tie state should be detected"
     , testCase "Double bishop"
@@ -83,10 +87,18 @@ ruleTests = testGroup
     $  isJust (stalemateTie stalemate)
     @? "Tie state should be detected"
     , testCase "No tie"
-    $  isNothing (anyTie startGame)
-    @? "There should be no tie"
+    $  isNothing (anyTermination startGame)
+    @? "The game shouldn't be over"
     ]
   where
+    checkmate = makeGame
+        (  emptyBoard
+        // [ ((7, 8), Just $ Piece King Black True False)
+           , ((7, 7), Just $ Piece Queen White True False)
+           , ((6, 6), Just $ Piece King White True False)
+           ]
+        )
+        Black
     materialTie = makeGame
         (  emptyBoard
         // [ ((2, 3), Just $ Piece King White True False)
