@@ -3,6 +3,7 @@ module Chess.Engine.Moves
     , Action(..)
     , MoveRule
     , ActionRule
+    , getMove
     , applyMove
     , applyAction
     , runAction
@@ -45,8 +46,6 @@ import           Control.Monad                  ( mfilter
                                                 , guard
                                                 )
 
--- TODO: Pawn promotion.
-
 -- | A 'Move' record contains the start and end locations of a move, including any side effect
 -- moves for castling, and an updating function to apply to the moved piece.
 data Move = Move { movesFrom :: BoardIx
@@ -62,6 +61,11 @@ type MoveRule = Board -> BoardIx -> [Move]
 
 -- | An 'ActionRule' generates a list of possible actions from a given position on the board.
 type ActionRule = Board -> BoardIx -> [Action]
+
+-- | Get the underlying 'Move' for an 'Action'.
+getMove :: Action -> Move
+getMove (NoCapture move) = move
+getMove (Capture _ move) = move
 
 -- | Apply a 'Move' to a 'Board'.
 applyMove :: Move -> Board -> Board
@@ -143,7 +147,7 @@ actionsForColorUnchecked color brd = concat . mapMaybe movesAt . assocs $ brd
 -- | Get the 'ActionRule' that applies to a given piece.
 pieceRule :: Piece -> ActionRule
 pieceRule piece = case pieceType piece of
-    Pawn -> concatActionRules
+    Pawn -> checkPawnPromotion $ concatActionRules
         [ pawnStep color
         , pawnLeap color
         , pawnCapture color left
@@ -201,9 +205,13 @@ onlyWhen pred rule brd pos = do
     guard $ maybe False pred (brd ! pos)
     rule brd pos
 
-updateWith :: (Piece -> Piece) -> MoveRule -> MoveRule
-updateWith pieceUpdater rule = fmap (map moveUpdater) . rule
-    where moveUpdater move = move { updater = pieceUpdater . updater move }
+updateMove :: (Move -> Move) -> Action -> Action
+updateMove updater (NoCapture move ) = NoCapture $ updater move
+updateMove updater (Capture at move) = Capture at $ updater move
+
+updateWith :: (Piece -> Piece) -> Action -> Action
+updateWith newUpdater =
+    updateMove $ \move -> move { updater = newUpdater . updater move }
 
 withSideEffect :: Move -> Move -> Move
 withSideEffect effect move = move { sideEffect = Just effect }
@@ -279,9 +287,9 @@ pawnStep = nthAction 1 . noCaptures . lineOfSightMove . pawnDirection
 pawnLeap :: Color -> ActionRule
 pawnLeap =
     nthAction 2
+        . (fmap . fmap) (map $ updateWith setPassantTarget)
         . noCaptures
         . onlyWhen (not . hasMoved)
-        . updateWith setPassantTarget
         . lineOfSightMove
         . pawnDirection
     where setPassantTarget piece = piece { enPassantTarget = True }
@@ -303,6 +311,20 @@ enPassant color dx brd (sx, sy) = do
         enPassantTarget
         (brd ! target)
     action = Capture target $ moveFrom (sx, sy) end
+
+checkPawnPromotion :: ActionRule -> ActionRule
+checkPawnPromotion rule board pos = do
+    action <- rule board pos
+    let (targetFile, targetRank) = movesTo (getMove action)
+    if targetRank == endRank then promotionsFor action else return action
+  where
+    endRank = case color of
+        White -> 8
+        Black -> 1
+    color = pieceColor . fromJust $ board ! pos
+    promotionsFor action =
+        map (flip updateWith action . promoteTo) [Queen, Knight, Rook, Bishop]
+    promoteTo newType piece = piece { pieceType = newType }
 
 castleActionRule :: Int -> ActionRule
 castleActionRule = noCaptures . castleMoveRule

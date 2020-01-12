@@ -267,4 +267,11 @@ moveTests = testGroup
         // [((1, 1), Just $ Piece Knight Black True False)]
         )
     @?= 2
+    , testCase "Pawn promotion"
+    $   (  length
+        .  actionsForColor White
+        $  emptyBoard
+        // [((1, 7), Just $ Piece Pawn White True False)]
+        )
+    @?= 4
     ]
