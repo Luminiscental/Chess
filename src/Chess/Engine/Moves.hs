@@ -6,6 +6,7 @@ module Chess.Engine.Moves
     , noCaptures
     , applyMove
     , applyAction
+    , runAction
     , squareThreatenedBy
     , existsCheckAgainst
     , checkToAddress
@@ -25,6 +26,7 @@ import           Chess.Engine.State             ( Board
                                                 , Piece(..)
                                                 , PieceType(..)
                                                 , Color(..)
+                                                , stepGame
                                                 , boardRange
                                                 , nextTurn
                                                 )
@@ -79,6 +81,17 @@ applyMove move brd = postMove $ brd // changes
 applyAction :: Action -> Board -> Board
 applyAction (NoCapture move ) board = applyMove move board
 applyAction (Capture at move) board = applyMove move $ board // [(at, Nothing)]
+
+-- | Run an action to step a 'Game'.
+runAction :: Action -> Game -> Game
+runAction action game = stepGame newBoard resetClock game
+  where
+    newBoard   = applyAction action oldBoard
+    resetClock = case action of
+        Capture _ _    -> True
+        NoCapture move -> isPawn $ oldBoard ! movesFrom move
+    isPawn   = maybe False $ (== Pawn) . pieceType
+    oldBoard = board game
 
 -- | Check whether a square is threatened by a piece of a given color, returning @True@ even if the
 -- only threatening pieces are pinned.
