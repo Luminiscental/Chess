@@ -3,7 +3,6 @@ module Chess.Engine.Moves
     , Action(..)
     , MoveRule
     , ActionRule
-    , noCaptures
     , applyMove
     , applyAction
     , runAction
@@ -63,10 +62,6 @@ type MoveRule = Board -> BoardIx -> [Move]
 
 -- | An 'ActionRule' generates a list of possible actions from a given position on the board.
 type ActionRule = Board -> BoardIx -> [Action]
-
--- | Convert a 'MoveRule' to an 'ActionRule' by assuming no move is a 'Capture'.
-noCaptures :: MoveRule -> ActionRule
-noCaptures moveRule board start = map NoCapture $ moveRule board start
 
 -- | Apply a 'Move' to a 'Board'.
 applyMove :: Move -> Board -> Board
@@ -158,24 +153,24 @@ pieceRule piece = case pieceType piece of
         ]
     Rook ->
         concatActionRules
-            $  map lineOfSightMoveAction gridLines
-            ++ map lineOfSightCapture    gridLines
+            $  map lineOfSightNoCapture gridLines
+            ++ map lineOfSightCapture   gridLines
     Knight ->
         concatActionRules
-            $  map jumpMove    knightOffsets
-            ++ map jumpCapture knightOffsets
+            $  map jumpNoCapture knightOffsets
+            ++ map jumpCapture   knightOffsets
     Bishop ->
         concatActionRules
-            $  map lineOfSightMoveAction diagonalLines
-            ++ map lineOfSightCapture    diagonalLines
+            $  map lineOfSightNoCapture diagonalLines
+            ++ map lineOfSightCapture   diagonalLines
     Queen ->
         concatActionRules
-            $  map lineOfSightMoveAction queenLines
-            ++ map lineOfSightCapture    queenLines
+            $  map lineOfSightNoCapture queenLines
+            ++ map lineOfSightCapture   queenLines
     King ->
         concatActionRules
-            $  map jumpMove    queenLines
-            ++ map jumpCapture queenLines
+            $  map jumpNoCapture queenLines
+            ++ map jumpCapture   queenLines
             ++ [castleActionRule left, castleActionRule right]
   where
     xor           = (/=)
@@ -224,47 +219,56 @@ moveFrom start end = Move { movesFrom  = start
 captureFrom :: BoardIx -> BoardIx -> Action
 captureFrom start end = Capture end $ moveFrom start end
 
+noCaptures :: MoveRule -> ActionRule
+noCaptures moveRule board start = map NoCapture $ moveRule board start
+
 validSquare :: BoardIx -> Bool
 validSquare = inRange boardRange
 
 emptySquareOn :: Board -> BoardIx -> Bool
 emptySquareOn brd pos = isNothing $ brd ! pos
 
-lineOfSightMove :: (Int, Int) -> MoveRule
-lineOfSightMove (dx, dy) brd (sx, sy) =
-    map (moveFrom (sx, sy))
-        . takeWhile (emptySquareOn brd)
-        . takeWhile validSquare
-        $ [ (sx + n * dx, sy + n * dy) | n <- [1 ..] ]
+lineOfSight :: (Int, Int) -> Board -> BoardIx -> [BoardIx]
+lineOfSight (dx, dy) brd (sx, sy) =
+    takeWhile validSquare [ (sx + n * dx, sy + n * dy) | n <- [1 ..] ]
 
-lineOfSightMoveAction :: (Int, Int) -> ActionRule
-lineOfSightMoveAction = noCaptures . lineOfSightMove
+checkEnemy :: Board -> BoardIx -> BoardIx -> Bool
+checkEnemy brd start at = thatColor == Just enemyColor
+  where
+    myColor    = pieceColor . fromJust $ brd ! start
+    enemyColor = nextTurn myColor
+    thatColor  = pieceColor <$> brd ! at
+
+lineOfSightMove :: (Int, Int) -> MoveRule
+lineOfSightMove offset brd start =
+    map (moveFrom start) . takeWhile (emptySquareOn brd) $ lineOfSight
+        offset
+        brd
+        start
+
+lineOfSightNoCapture :: (Int, Int) -> ActionRule
+lineOfSightNoCapture = noCaptures . lineOfSightMove
 
 lineOfSightCapture :: (Int, Int) -> ActionRule
-lineOfSightCapture (dx, dy) brd (sx, sy) =
-    map (captureFrom (sx, sy))
-        . filter isEnemy
+lineOfSightCapture offset brd start =
+    map (captureFrom start)
+        . filter (checkEnemy brd start)
         . take 1
         . dropWhile (emptySquareOn brd)
-        . takeWhile validSquare
-        $ [ (sx + n * dx, sy + n * dy) | n <- [1 ..] ]
-  where
-    isEnemy pos =
-        (pieceColor <$> brd ! pos) == (nextTurn . pieceColor <$> brd ! (sx, sy))
+        $ lineOfSight offset brd start
 
-jumpMove :: (Int, Int) -> ActionRule
-jumpMove = nthAction 1 . lineOfSightMoveAction
+jumpNoCapture :: (Int, Int) -> ActionRule
+jumpNoCapture = nthAction 1 . lineOfSightNoCapture
 
 jumpCapture :: (Int, Int) -> ActionRule
-jumpCapture (dx, dy) brd (sx, sy) =
-    map (captureFrom (sx, sy))
-        . filter isEnemy
+jumpCapture offset brd start =
+    map (captureFrom start)
+        . filter (checkEnemy brd start)
         . take 1
-        . takeWhile validSquare
-        $ [ (sx + n * dx, sy + n * dy) | n <- [1 ..] ]
+        $ lineOfSight offset brd start
   where
     isEnemy pos =
-        (pieceColor <$> brd ! pos) == (nextTurn . pieceColor <$> brd ! (sx, sy))
+        (pieceColor <$> brd ! pos) == (nextTurn . pieceColor <$> brd ! start)
 
 pawnDirection :: Color -> (Int, Int)
 pawnDirection White = (0, 1)
