@@ -11,6 +11,7 @@ import           Data.Maybe                     ( isJust
 import           Chess.Engine.State             ( Color(..)
                                                 , PieceType(..)
                                                 , Piece(..)
+                                                , Game(..)
                                                 , makeGame
                                                 , startGame
                                                 , stepGame
@@ -31,8 +32,16 @@ import           Chess.Engine.Rules             ( checkmateRule
                                                 , anyTermination
                                                 )
 import           Chess.Engine.Moves             ( Move(..)
+                                                , Action(..)
                                                 , MoveRule
+                                                , ActionRule
                                                 , applyMove
+                                                , applyAction
+                                                , runAction
+                                                , squareThreatenedBy
+                                                , existsCheckAgainst
+                                                , availableActions
+                                                , actionsForColor
                                                 )
 
 main :: IO ()
@@ -40,8 +49,6 @@ main = defaultMain tests
 
 tests :: TestTree
 tests = testGroup "Tests" [stateTests, ruleTests, moveTests]
-
--- TODO: Test 'Game' manipulation functions
 
 stateTests :: TestTree
 stateTests = testGroup
@@ -60,8 +67,14 @@ stateTests = testGroup
     , testCase "Bishop colors"
     $   getBishopColors testBoard
     @?= (Set.fromList [Black], Set.empty)
+    , testCase "Step game"
+    $   halfMoveClock (stepGame emptyBoard False startGame)
+    @?= 1
+    , testCase "Start game" $ toMove startGame @?= White
+    , testCase "Full move count" $ fullMoveCount (dummySteps 3 startGame) @?= 1
     ]
   where
+    dummySteps n = foldr (.) id $ replicate n (stepGame defaultBoard False)
     testBoard =
         emptyBoard
             // [ ((3, 3), Just $ Piece Bishop White True False)
@@ -129,18 +142,108 @@ ruleTests = testGroup
         )
         Black
 
--- TODO: Test all exposed functions from Moves.hs
-
 moveTests :: TestTree
 moveTests = testGroup
     "Moves"
     [ testCase "Move application"
-      $   applyMove
-              Move { movesFrom  = (3, 4)
-                   , movesTo    = (5, 7)
-                   , updater    = \piece -> piece { hasMoved = True }
-                   , sideEffect = Nothing
-                   }
-              (emptyBoard // [((3, 4), Just $ Piece Pawn White False False)])
-      @?= (emptyBoard // [((5, 7), Just $ Piece Pawn White True False)])
+    $   applyMove
+            Move { movesFrom  = (3, 4)
+                 , movesTo    = (5, 7)
+                 , updater    = \piece -> piece { hasMoved = True }
+                 , sideEffect = Nothing
+                 }
+            (emptyBoard // [((3, 4), Just $ Piece Pawn White False False)])
+    @?= (emptyBoard // [((5, 7), Just $ Piece Pawn White True False)])
+    , testCase "Action application"
+    $   applyAction
+            (Capture
+                (3, 3)
+                Move
+                    { movesFrom  = (1, 1)
+                    , movesTo    = (1, 2)
+                    , updater    =
+                        \piece ->
+                            piece { hasMoved = True, enPassantTarget = True }
+                    , sideEffect = Nothing
+                    }
+            )
+            (  emptyBoard
+            // [ ((3, 3), Just $ Piece Rook White False False)
+               , ((1, 1), Just $ Piece Pawn Black False False)
+               ]
+            )
+    @?= (emptyBoard // [((1, 2), Just $ Piece Pawn Black True True)])
+    , testCase "Side effect"
+    $   applyMove
+            Move
+                { movesFrom  = (7, 6)
+                , movesTo    = (4, 4)
+                , updater    = id
+                , sideEffect = Just Move { movesFrom  = (1, 1)
+                                         , movesTo    = (2, 2)
+                                         , updater    = id
+                                         , sideEffect = Nothing
+                                         }
+                }
+            (  emptyBoard
+            // [ ((7, 6), Just $ Piece Pawn White False False)
+               , ((1, 1), Just $ Piece King White False False)
+               ]
+            )
+    @?= (  emptyBoard
+        // [ ((4, 4), Just $ Piece Pawn White False False)
+           , ((2, 2), Just $ Piece King White False False)
+           ]
+        )
+    , testCase "Resetting half move clock"
+    $   halfMoveClock
+            (runAction
+                (NoCapture Move { movesFrom  = (3, 2)
+                                , movesTo    = (3, 3)
+                                , updater = \piece -> piece { hasMoved = True }
+                                , sideEffect = Nothing
+                                }
+                )
+                startGame
+            )
+    @?= 0
+    , testCase "Threatened king"
+    $  squareThreatenedBy
+           White
+           (  emptyBoard
+           // [ ((5, 1), Just $ Piece King Black True False)
+              , ((5, 2), Just $ Piece King White True False)
+              ]
+           )
+           (5, 1)
+    @? "King should be threatened"
+    , testCase "Check existence"
+    $  existsCheckAgainst
+           Black
+           (  defaultBoard
+           // [ ((4, 7), Nothing)
+              , ((2, 5), Just $ Piece Bishop White True False)
+              ]
+           )
+    @? "Black should be in check"
+    , testCase "Available actions" $ length (availableActions startGame) @?= 8 + 8 + 4
+    , testCase "Castling"
+    $   (  length
+        .  actionsForColor Black
+        $  emptyBoard
+        // [ ((5, 8), Just $ Piece King Black False False)
+           , ((8, 8), Just $ Piece Rook Black False False)
+           ]
+        )
+    @?= 1
+    , testCase "Castling through check"
+    $   (  length
+        .  actionsForColor White
+        $  emptyBoard
+        // [ ((5, 1), Just $ Piece King White False False)
+           , ((8, 1), Just $ Piece Rook White False False)
+           , ((6, 3), Just $ Piece Rook Black True False)
+           ]
+        )
+    @?= 0
     ]
