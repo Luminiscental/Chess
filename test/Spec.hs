@@ -242,8 +242,8 @@ moveTests = testGroup
         $  emptyBoard
         // [ ((5, 1), Just $ Piece King White False False)
            , ((8, 1), Just $ Piece Rook White False False)
-           , ((6, 3), Just $ Piece Rook Black True False)
+           , ((7, 3), Just $ Piece Rook Black True False)
            ]
         )
-    @?= 9 + 3 -- rook moves + king moves (no castle move)
+    @?= 9 + 5 -- rook moves + king moves (no castle move)
     ]
