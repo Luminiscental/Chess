@@ -182,14 +182,13 @@ pieceRule piece = case pieceType piece of
         , diry <- [-1 .. 1]
         , (dirx /= 0) `xor` (diry /= 0)
         ]
-    diagonalLines =
-        [ (dirx, diry)
-        | dirx <- [-1 .. 1]
-        , diry <- [-1 .. 1]
-        , (dirx /= 0) && (diry /= 0)
-        ]
-    knightOffsets = [ (dirx, diry) | dirx <- [-1, 1], diry <- [-2, 2] ]
-    queenLines    = gridLines ++ diagonalLines
+    diagonalLines = [ (dirx, diry) | dirx <- [-1, 1], diry <- [-1, 1] ]
+    knightOffsets =
+        concat
+            [ [(dirx, 2 * diry), (2 * dirx, diry)]
+            | (dirx, diry) <- diagonalLines
+            ]
+    queenLines = gridLines ++ diagonalLines
 
 concatActionRules :: [ActionRule] -> ActionRule
 concatActionRules rules brd pos = concatMap (\rule -> rule brd pos) rules

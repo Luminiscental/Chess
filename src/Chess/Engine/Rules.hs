@@ -95,7 +95,7 @@ stalemateTie game =
 
 -- | Termination rule that checks for any tie or win.
 anyTermination :: TerminationRule
-anyTermination game = asum $ map ($game) rules
+anyTermination game = asum $ map ($ game) rules
   where
     rules =
         -- NOTE: Order matters; look for checkmate before ties

@@ -226,7 +226,11 @@ moveTests = testGroup
               ]
            )
     @? "Black should be in check"
-    , testCase "Available actions" $ length (availableActions startGame) @?= 8 + 8 + 4
+    , testCase "Available actions"
+    $   length (availableActions startGame)
+    @?= 8
+    +   8
+    +   4
     , testCase "Castling"
     $   (  length
         .  actionsForColor Black
@@ -235,7 +239,9 @@ moveTests = testGroup
            , ((8, 8), Just $ Piece Rook Black False False)
            ]
         )
-    @?= 9 + 5 + 1 -- rook moves + king moves + castle move
+    @?= 9
+    +   5
+    +   1 -- rook moves + king moves + castle move
     , testCase "Castling through check"
     $   (  length
         .  actionsForColor White
@@ -245,5 +251,20 @@ moveTests = testGroup
            , ((7, 3), Just $ Piece Rook Black True False)
            ]
         )
-    @?= 9 + 5 -- rook moves + king moves (no castle move)
+    @?= 9
+    +   5 -- rook moves + king moves (no castle move)
+    , testCase "Center knight"
+    $   (  length
+        .  actionsForColor White
+        $  emptyBoard
+        // [((4, 4), Just $ Piece Knight White True False)]
+        )
+    @?= 8
+    , testCase "Corner knight"
+    $   (  length
+        .  actionsForColor Black
+        $  emptyBoard
+        // [((1, 1), Just $ Piece Knight Black True False)]
+        )
+    @?= 2
     ]
