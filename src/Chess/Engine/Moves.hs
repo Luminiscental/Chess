@@ -243,16 +243,28 @@ lineOfSightMoveAction = noCaptures . lineOfSightMove
 lineOfSightCapture :: (Int, Int) -> ActionRule
 lineOfSightCapture (dx, dy) brd (sx, sy) =
     map (captureFrom (sx, sy))
+        . filter isEnemy
         . take 1
         . dropWhile (emptySquareOn brd)
         . takeWhile validSquare
         $ [ (sx + n * dx, sy + n * dy) | n <- [1 ..] ]
+  where
+    isEnemy pos =
+        (pieceColor <$> brd ! pos) == (nextTurn . pieceColor <$> brd ! (sx, sy))
 
 jumpMove :: (Int, Int) -> ActionRule
-jumpMove = nthAction 1 . noCaptures . lineOfSightMove
+jumpMove = nthAction 1 . lineOfSightMoveAction
 
 jumpCapture :: (Int, Int) -> ActionRule
-jumpCapture = nthAction 1 . lineOfSightCapture
+jumpCapture (dx, dy) brd (sx, sy) =
+    map (captureFrom (sx, sy))
+        . filter isEnemy
+        . take 1
+        . takeWhile validSquare
+        $ [ (sx + n * dx, sy + n * dy) | n <- [1 ..] ]
+  where
+    isEnemy pos =
+        (pieceColor <$> brd ! pos) == (nextTurn . pieceColor <$> brd ! (sx, sy))
 
 pawnDirection :: Color -> (Int, Int)
 pawnDirection White = (0, 1)

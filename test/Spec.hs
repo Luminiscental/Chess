@@ -235,7 +235,7 @@ moveTests = testGroup
            , ((8, 8), Just $ Piece Rook Black False False)
            ]
         )
-    @?= 1
+    @?= 9 + 5 + 1 -- rook moves + king moves + castle move
     , testCase "Castling through check"
     $   (  length
         .  actionsForColor White
@@ -245,5 +245,5 @@ moveTests = testGroup
            , ((6, 3), Just $ Piece Rook Black True False)
            ]
         )
-    @?= 0
+    @?= 9 + 3 -- rook moves + king moves (no castle move)
     ]
