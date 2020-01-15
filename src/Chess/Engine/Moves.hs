@@ -71,7 +71,7 @@ isCapture :: Action -> Bool
 isCapture (Capture _ _) = True
 isCapture (NoCapture _) = False
 
--- TODO: Disambiguation, pawn captures, promotion, castling, check, checkmate
+-- TODO: Disambiguation, promotion, castling, check, checkmate
 -- | Get the algebraic notation for each 'Action' in a list, disambiguating within the list.
 actionSAN :: Board -> [Action] -> [String]
 actionSAN board actions = do
@@ -81,8 +81,9 @@ actionSAN board actions = do
     let captureNot = if captures then "x" else ""
     let piece      = board ! movesFrom move
     let target     = movesTo move
-    let pieceSAN piece =
-            if pieceType piece /= Pawn then [pieceFEN piece] else ""
+    let pieceSAN piece = case pieceType piece of
+            Pawn -> [ head . squareSAN $ movesFrom move | captures ]
+            _    -> [pieceFEN piece]
     let pieceNot  = pieceSAN . fromJust $ piece
     let targetNot = squareSAN target
     return $ pieceNot ++ captureNot ++ targetNot
