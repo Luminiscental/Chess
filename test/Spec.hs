@@ -55,7 +55,7 @@ stateTests = testGroup
     "State"
     [ testCase "Next turn" $ nextTurn White @?= Black
     , testCase "Square colors" $ squareColor (3, 4) @?= White
-    , testCase "Piece FEN" $ pieceFEN White Knight @?= 'N'
+    , testCase "Piece FEN" $ pieceFEN (Piece Knight White False False) @?= 'N'
     , testCase "Board FEN"
     $ boardFEN (defaultBoard // [((4, 5), Just $ Piece King Black False False)])
     @?= "rnbqkbnr/pppppppp/8/3k4/8/8/PPPPPPPP/RNBQKBNR"

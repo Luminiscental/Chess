@@ -7,6 +7,7 @@ module Chess.Engine.State
     , Color(..)
     , squareColor
     , nextTurn
+    , squareSAN
     , pieceFEN
     , boardFEN
     , stepGame
@@ -68,11 +69,15 @@ data Color = Black | White
 data Game = Game { board :: Board, toMove :: Color, halfMoveClock :: Int, fullMoveCount :: Int, prevBoardFENs :: [ByteString] }
     deriving (Show, Eq)
 
+-- | Get the notation for a square on the board.
+squareSAN :: BoardIx -> String
+squareSAN (x, y) = [Char.chr (Char.ord 'a' + x - 1), Char.intToDigit y]
+
 -- | Get the FEN notation for a piece.
-pieceFEN :: Color -> PieceType -> Char
-pieceFEN color = if color == White
-    then Char.toUpper . getLowerFEN
-    else getLowerFEN
+pieceFEN :: Piece -> Char
+pieceFEN piece = if pieceColor piece == White
+    then Char.toUpper . getLowerFEN $ pieceType piece
+    else getLowerFEN $ pieceType piece
   where
     getLowerFEN Pawn   = 'p'
     getLowerFEN Rook   = 'r'
@@ -91,11 +96,8 @@ boardFEN brd = List.intercalate "/" rows
         | row <- reverse [1 .. 8]
         ]
     displayRow []                  = ""
-    displayRow (Just piece : rest) = pieceFEN pCol pTyp : displayRow rest
-      where
-        pCol = pieceColor piece
-        pTyp = pieceType piece
-    displayRow (Nothing : rest) = Char.intToDigit blankCount : afterBlanks
+    displayRow (Just piece : rest) = pieceFEN piece : displayRow rest
+    displayRow (Nothing    : rest) = Char.intToDigit blankCount : afterBlanks
       where
         (empties, afterEmpties) = span isNothing rest
         blankCount              = 1 + length empties

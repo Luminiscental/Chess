@@ -3,6 +3,7 @@ module Chess.Engine.Moves
     , Action(..)
     , MoveRule
     , ActionRule
+    , actionSAN
     , getMove
     , applyMove
     , applyAction
@@ -29,7 +30,10 @@ import           Chess.Engine.State             ( Board
                                                 , stepGame
                                                 , boardRange
                                                 , nextTurn
+                                                , pieceFEN
+                                                , squareSAN
                                                 )
+import qualified Data.Char                     as Char
 import           Data.Array.IArray              ( (!)
                                                 , (//)
                                                 , assocs
@@ -61,6 +65,27 @@ type MoveRule = Board -> BoardIx -> [Move]
 
 -- | An 'ActionRule' generates a list of possible actions from a given position on the board.
 type ActionRule = Board -> BoardIx -> [Action]
+
+-- | Check if a given 'Action' is a capture.
+isCapture :: Action -> Bool
+isCapture (Capture _ _) = True
+isCapture (NoCapture _) = False
+
+-- TODO: Disambiguation, pawn captures, promotion, castling, check, checkmate
+-- | Get the algebraic notation for each 'Action' in a list, disambiguating within the list.
+actionSAN :: Board -> [Action] -> [String]
+actionSAN board actions = do
+    action <- actions
+    let move       = getMove action
+    let captures   = isCapture action
+    let captureNot = if captures then "x" else ""
+    let piece      = board ! movesFrom move
+    let target     = movesTo move
+    let pieceSAN piece =
+            if pieceType piece /= Pawn then [pieceFEN piece] else ""
+    let pieceNot  = pieceSAN . fromJust $ piece
+    let targetNot = squareSAN target
+    return $ pieceNot ++ captureNot ++ targetNot
 
 -- | Get the underlying 'Move' for an 'Action'.
 getMove :: Action -> Move
