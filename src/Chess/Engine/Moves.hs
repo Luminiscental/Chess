@@ -83,7 +83,7 @@ actionSAN board actions = do
     let target     = movesTo move
     let pieceSAN piece = case pieceType piece of
             Pawn -> [ head . squareSAN $ movesFrom move | captures ]
-            _    -> [pieceFEN piece]
+            _    -> [Char.toUpper $ pieceFEN piece]
     let pieceNot  = pieceSAN . fromJust $ piece
     let targetNot = squareSAN target
     return $ pieceNot ++ captureNot ++ targetNot
