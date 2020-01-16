@@ -81,7 +81,7 @@ groupsFrom pred list = case list of
 -- [0, 4, 5]
 --
 -- >>> disambiguate [((==), negate), (\_ _ -> False, id)] [1, 3, 2, 1, 1]
--- [1, 1, 1, -3, -2]
+-- [-3, -2, 1, 1, 1]
 disambiguate :: [(a -> a -> Bool, a -> b)] -> [a] -> [b]
 disambiguate _  [] = []
 disambiguate [] _  = error "Couldn't fully disambiguate list"
