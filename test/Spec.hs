@@ -8,18 +8,15 @@ import           Data.Array.IArray              ( (!)
 import           Data.Maybe                     ( isJust
                                                 , isNothing
                                                 )
-import           Chess.Engine.State             ( Color(..)
-                                                , PieceType(..)
-                                                , Piece(..)
-                                                , Game(..)
-                                                , makeGame
+
+import           Chess.Types
+import           Chess.Util
+import           Chess.Engine.State             ( makeGame
                                                 , startGame
                                                 , stepGame
                                                 , emptyBoard
                                                 , defaultBoard
                                                 , squareColor
-                                                , pieceFEN
-                                                , boardFEN
                                                 , nextTurn
                                                 , getMaterial
                                                 , getBishopColors
@@ -31,11 +28,7 @@ import           Chess.Engine.Rules             ( checkmateRule
                                                 , stalemateTie
                                                 , anyTermination
                                                 )
-import           Chess.Engine.Moves             ( Move(..)
-                                                , Action(..)
-                                                , MoveRule
-                                                , ActionRule
-                                                , applyMove
+import           Chess.Engine.Moves             ( applyMove
                                                 , applyAction
                                                 , runAction
                                                 , squareThreatenedBy
@@ -43,6 +36,11 @@ import           Chess.Engine.Moves             ( Move(..)
                                                 , availableActions
                                                 , actionsForColor
                                                 )
+import           Chess.Interface.Notation       ( pieceFEN
+                                                , boardFEN
+                                                )
+
+-- TODO: Test Chess.Util and Chess.Interface.Notation
 
 main :: IO ()
 main = defaultMain tests
@@ -147,10 +145,11 @@ moveTests = testGroup
     "Moves"
     [ testCase "Move application"
     $   applyMove
-            Move { movesFrom  = (3, 4)
-                 , movesTo    = (5, 7)
-                 , updater    = \piece -> piece { hasMoved = True }
-                 , sideEffect = Nothing
+            Move { movingPiece = Piece Pawn White False False
+                 , movesFrom   = (3, 4)
+                 , movesTo     = (5, 7)
+                 , updater     = \piece -> piece { hasMoved = True }
+                 , sideEffect  = Nothing
                  }
             (emptyBoard // [((3, 4), Just $ Piece Pawn White False False)])
     @?= (emptyBoard // [((5, 7), Just $ Piece Pawn White True False)])
@@ -159,12 +158,13 @@ moveTests = testGroup
             (Capture
                 (3, 3)
                 Move
-                    { movesFrom  = (1, 1)
-                    , movesTo    = (1, 2)
-                    , updater    =
+                    { movingPiece = Piece Pawn Black False False
+                    , movesFrom   = (1, 1)
+                    , movesTo     = (1, 2)
+                    , updater     =
                         \piece ->
                             piece { hasMoved = True, enPassantTarget = True }
-                    , sideEffect = Nothing
+                    , sideEffect  = Nothing
                     }
             )
             (  emptyBoard
@@ -176,14 +176,17 @@ moveTests = testGroup
     , testCase "Side effect"
     $   applyMove
             Move
-                { movesFrom  = (7, 6)
-                , movesTo    = (4, 4)
-                , updater    = id
-                , sideEffect = Just Move { movesFrom  = (1, 1)
-                                         , movesTo    = (2, 2)
-                                         , updater    = id
-                                         , sideEffect = Nothing
-                                         }
+                { movingPiece = Piece Pawn White False False
+                , movesFrom   = (7, 6)
+                , movesTo     = (4, 4)
+                , updater     = id
+                , sideEffect  = Just Move
+                                    { movingPiece = Piece King White False False
+                                    , movesFrom   = (1, 1)
+                                    , movesTo     = (2, 2)
+                                    , updater     = id
+                                    , sideEffect  = Nothing
+                                    }
                 }
             (  emptyBoard
             // [ ((7, 6), Just $ Piece Pawn White False False)
@@ -198,10 +201,11 @@ moveTests = testGroup
     , testCase "Resetting half move clock"
     $   halfMoveClock
             (runAction
-                (NoCapture Move { movesFrom  = (3, 2)
-                                , movesTo    = (3, 3)
+                (NoCapture Move { movingPiece = Piece Pawn White False False
+                                , movesFrom   = (3, 2)
+                                , movesTo     = (3, 3)
                                 , updater = \piece -> piece { hasMoved = True }
-                                , sideEffect = Nothing
+                                , sideEffect  = Nothing
                                 }
                 )
                 startGame

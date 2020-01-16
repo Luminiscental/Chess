@@ -10,7 +10,9 @@ module Chess.Interface.Notation
     , pieceTypeChar
     , pieceFEN
     , boardFEN
-    , actionsSAN
+    , getSANs
+    , getVerboseSAN
+    , simplifyVerboseSANs
     )
 where
 
@@ -19,16 +21,24 @@ import           Chess.Util
 
 import qualified Data.Char                     as Char
 import qualified Data.List                     as List
+import           Data.Function                  ( on )
 import           Data.Maybe                     ( isNothing )
 import           Data.Array.IArray              ( (!)
                                                 , range
                                                 )
+import           Data.Traversable               ( for )
 
 -- TODO: Full PGN, FEN, EPD import/export functions
 
+fileChar :: Int -> Char
+fileChar = Char.chr . (+ (Char.ord 'a' - 1))
+
+rankChar :: Int -> Char
+rankChar = Char.intToDigit
+
 -- | Get the standard notation for a square on the board.
 squareSAN :: BoardIx -> String
-squareSAN (x, y) = [Char.chr (Char.ord 'a' + x - 1), Char.intToDigit y]
+squareSAN (file, rank) = [fileChar file, rankChar rank]
 
 -- | Get the character representing a given piece type (lower case).
 pieceTypeChar :: PieceType -> Char
@@ -63,17 +73,49 @@ boardFEN brd = List.intercalate "/" rows
         afterBlanks             = displayRow afterEmpties
 
 -- TODO: Pawn promotion, castling, check/checkmate
--- | Get the algebraic notation for each 'Action' in a list, disambiguating within the list.
-actionsSAN :: [Action] -> [String]
-actionsSAN actions = simplifySANs verboseSANs
+
+-- | Get the standard algebraic notation for each 'Action' in a list, disambiguating within the
+-- given list only.
+getSANs :: [Action] -> [String]
+getSANs = simplifyVerboseSANs . map getVerboseSAN
+
+-- | Get the 'VerboseSAN' for a given action.
+getVerboseSAN :: Action -> VerboseSAN
+getVerboseSAN action =
+    let move                   = getMove action
+        isCapture              = captures action
+        piece                  = movingPiece move
+        (startFile, startRank) = movesFrom move
+        pieceNote              = case pieceType piece of
+            Pawn  -> if isCapture then [fileChar startFile] else ""
+            other -> [Char.toUpper . pieceTypeChar $ other]
+        captureNote = if isCapture then "x" else ""
+        targetNote  = squareSAN . movesTo $ move
+    in  VerboseSAN { pieceNote   = pieceNote
+                   , startFile   = startFile
+                   , startRank   = startRank
+                   , captureNote = captureNote
+                   , targetNote  = targetNote
+                   }
+
+-- | Simplify a list of 'VerboseSAN's down to the canonical SAN as a string, disambiguating within
+-- the given list only.
+simplifyVerboseSANs :: [VerboseSAN] -> [String]
+simplifyVerboseSANs = disambiguate
+    [ (equatePieceAndTarget, specify (const ""))
+    , (equateFile          , specify file)
+    , (equateRank          , specify rank)
+    , (equateRankAndFile   , specify square)
+    ]
   where
-    verboseSANs = do
-        action <- actions
-        let move        = getMove action
-        let piece       = movingPiece move
-        let pieceNote = Char.toUpper . pieceTypeChar . pieceType $ piece
-        let startNote   = squareSAN . movesFrom $ move
-        let captureNote = if captures action then "x" else ""
-        let targetNote  = squareSAN . movesTo $ move
-        return (pieceNote, startNote, captureNote, targetNote)
-    simplifySANs verbose = undefined
+    equatePieceAndTarget = (==) `on` (,) <$> pieceNote <*> targetNote
+    equateFile           = (==) `on` startFile
+    equateRank           = (==) `on` startRank
+    equateRankAndFile    = (==) `on` (,) <$> startFile <*> startRank
+
+    specify fn san = pieceNote san ++ fn san ++ otherNotes san
+    file   = show . fileChar . startFile
+    rank   = show . rankChar . startRank
+    square = squareSAN . startSquare
+    startSquare san = (startFile san, startRank san)
+    otherNotes san = captureNote san ++ targetNote san

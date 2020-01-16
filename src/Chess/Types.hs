@@ -32,6 +32,10 @@ module Chess.Types
     , TieCause(..)
     , GameResult(..)
     , TerminationRule(..)
+    -- * Types for Chess.Interface.Notation
+    --
+    -- | Some small utility types for intermediate representations when generating notation.
+    , VerboseSAN(..)
     )
 where
 
@@ -100,3 +104,9 @@ data GameResult = Win Color | Tie TieCause deriving (Show, Eq)
 -- | A 'TerminationRule' determines whether a game has finished, giving the result if so.
 type TerminationRule = Game -> Maybe GameResult
 
+-- | Contains a verbose move description, which can be simplified down to SAN.
+data VerboseSAN = VerboseSAN { pieceNote :: String
+                             , startFile :: Int
+                             , startRank :: Int
+                             , captureNote :: String
+                             , targetNote :: String }

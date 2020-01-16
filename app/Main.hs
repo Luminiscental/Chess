@@ -7,7 +7,7 @@ import           Chess.Engine.Moves             ( runAction
                                                 , availableActions
                                                 )
 import           Chess.Engine.Rules             ( anyTermination )
-import           Chess.Interface.Notation       ( actionsSAN
+import           Chess.Interface.Notation       ( getSANs
                                                 , pieceFEN
                                                 )
 
@@ -24,7 +24,7 @@ displayBoard game = do
 getChosenAction :: Game -> IO Action
 getChosenAction game = do
     let actions   = availableActions game
-    let notations = actionsSAN actions
+    let notations = getSANs actions
     for_ (zip [1 ..] notations)
         $ \(idx, notation) -> putStrLn (show idx ++ ": " ++ notation)
     idx <- subtract 1 <$> readLn
