@@ -26,7 +26,6 @@ import           Data.Maybe                     ( isNothing )
 import           Data.Array.IArray              ( (!)
                                                 , range
                                                 )
-import           Data.Traversable               ( for )
 
 -- TODO: Full PGN, FEN, EPD import/export functions
 
