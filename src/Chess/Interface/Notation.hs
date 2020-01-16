@@ -111,8 +111,8 @@ getVerboseSAN action =
                    , castleNote       = castleNote
                    }
 
--- | Simplify a list of 'VerboseSAN's down to the canonical SAN as a string, disambiguating within
--- the given list only.
+-- | Simplify a list of 'VerboseSAN's, mapping to each canonical SAN as a string and disambiguating
+-- within the given list.
 simplifyVerboseSANs :: [VerboseSAN] -> [String]
 simplifyVerboseSANs = disambiguate
     [ (equateCastle        , castleNote)
