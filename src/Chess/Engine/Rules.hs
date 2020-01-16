@@ -18,14 +18,14 @@ where
 
 import           Chess.Types
 import           Chess.Util
-import           Chess.Engine.State             ( boardFEN
-                                                , getMaterial
+import           Chess.Engine.State             ( getMaterial
                                                 , getBishopColors
                                                 , nextTurn
                                                 )
 import           Chess.Engine.Moves             ( availableActions
                                                 , checkToAddress
                                                 )
+import           Chess.Interface.Notation       ( boardFEN )
 
 import qualified Data.Set                      as Set
 import           Data.Maybe                     ( listToMaybe )

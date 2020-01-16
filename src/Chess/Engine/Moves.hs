@@ -7,8 +7,7 @@ with the rules for what moves are possible for given pieces and for checking whi
 to make at a given point.
 -}
 module Chess.Engine.Moves
-    ( actionSAN
-    , getMove
+    ( getMove
     , applyMove
     , applyAction
     , runAction
@@ -27,8 +26,6 @@ import           Chess.Util
 import           Chess.Engine.State             ( stepGame
                                                 , boardRange
                                                 , nextTurn
-                                                , pieceFEN
-                                                , squareSAN
                                                 )
 
 import qualified Data.Char                     as Char
@@ -53,22 +50,6 @@ isCapture :: Action -> Bool
 isCapture (Capture _ _) = True
 isCapture (NoCapture _) = False
 
--- TODO: Disambiguation, promotion, castling, check, checkmate
--- | Get the algebraic notation for each 'Action' in a list, disambiguating within the list.
-actionSAN :: Board -> [Action] -> [String]
-actionSAN board actions = do
-    action <- actions
-    let move       = getMove action
-    let captures   = isCapture action
-    let captureNot = [ 'x' | captures ]
-    let piece      = board ! movesFrom move
-    let target     = movesTo move
-    let pieceSAN piece = case pieceType piece of
-            Pawn -> [ head . squareSAN $ movesFrom move | captures ]
-            _    -> [Char.toUpper $ pieceFEN piece]
-    let pieceNot  = pieceSAN . fromJust $ piece
-    let targetNot = squareSAN target
-    return $ pieceNot ++ captureNot ++ targetNot
 
 -- | Get the underlying 'Move' for an 'Action'.
 getMove :: Action -> Move

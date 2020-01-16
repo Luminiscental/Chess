@@ -8,9 +8,6 @@ overall game, and so on.
 module Chess.Engine.State
     ( squareColor
     , nextTurn
-    , squareSAN
-    , pieceFEN
-    , boardFEN
     , stepGame
     , makeGame
     , startGame
@@ -24,6 +21,7 @@ where
 
 import           Chess.Types
 import           Chess.Util
+import           Chess.Interface.Notation       ( boardFEN )
 
 import           Data.ByteString                ( ByteString )
 import qualified Data.ByteString               as ByteString
@@ -41,42 +39,6 @@ import           Data.Array.IArray              ( Array
                                                 , (//)
                                                 , (!)
                                                 )
-
--- TODO: PGN, FEN, EPD import/export functions
-
--- | Get the notation for a square on the board.
-squareSAN :: BoardIx -> String
-squareSAN (x, y) = [Char.chr (Char.ord 'a' + x - 1), Char.intToDigit y]
-
--- | Get the FEN notation for a piece.
-pieceFEN :: Piece -> Char
-pieceFEN piece = if pieceColor piece == White
-    then Char.toUpper . getLowerFEN $ pieceType piece
-    else getLowerFEN $ pieceType piece
-  where
-    getLowerFEN Pawn   = 'p'
-    getLowerFEN Rook   = 'r'
-    getLowerFEN Knight = 'n'
-    getLowerFEN Bishop = 'b'
-    getLowerFEN Queen  = 'q'
-    getLowerFEN King   = 'k'
-
--- | Get the FEN notation for a given board state, only including piece placements, not the
--- additional metadata.
-boardFEN :: Board -> String
-boardFEN brd = List.intercalate "/" rows
-  where
-    rows =
-        [ displayRow . map (brd !) $ range ((1, row), (8, row))
-        | row <- reverse [1 .. 8]
-        ]
-    displayRow []                  = ""
-    displayRow (Just piece : rest) = pieceFEN piece : displayRow rest
-    displayRow (Nothing    : rest) = Char.intToDigit blankCount : afterBlanks
-      where
-        (empties, afterEmpties) = span isNothing rest
-        blankCount              = 1 + length empties
-        afterBlanks             = displayRow afterEmpties
 
 -- | Get the color whose turn is next given the color that moved.
 nextTurn :: Color -> Color

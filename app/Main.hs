@@ -2,14 +2,14 @@ module Main where
 
 import           Chess.Types
 import           Chess.Util
-import           Chess.Engine.State             ( startGame
-                                                , pieceFEN
-                                                )
+import           Chess.Engine.State             ( startGame )
 import           Chess.Engine.Moves             ( runAction
                                                 , availableActions
-                                                , actionSAN
                                                 )
 import           Chess.Engine.Rules             ( anyTermination )
+import           Chess.Interface.Notation       ( actionsSAN
+                                                , pieceFEN
+                                                )
 
 import           Data.Foldable                  ( for_ )
 import           Data.Array.IArray              ( (!) )
@@ -24,7 +24,7 @@ displayBoard game = do
 getChosenAction :: Game -> IO Action
 getChosenAction game = do
     let actions   = availableActions game
-    let notations = actionSAN (board game) actions
+    let notations = actionsSAN actions
     for_ (zip [1 ..] notations)
         $ \(idx, notation) -> putStrLn (show idx ++ ": " ++ notation)
     idx <- subtract 1 <$> readLn
