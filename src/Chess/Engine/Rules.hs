@@ -1,8 +1,5 @@
 module Chess.Engine.Rules
-    ( TieCause(..)
-    , GameResult(..)
-    , TerminationRule
-    , checkmateRule
+    ( checkmateRule
     , fiftyMoveTie
     , insufficientMaterialTie
     , doubleBishopTie
@@ -12,14 +9,9 @@ module Chess.Engine.Rules
     )
 where
 
-import           Chess.Util                     ( packString )
-import qualified Data.Set                      as Set
-import           Data.Maybe                     ( listToMaybe )
-import           Data.Foldable                  ( asum )
-import           Chess.Engine.State             ( Game(..)
-                                                , Color
-                                                , PieceType(..)
-                                                , boardFEN
+import           Chess.Types
+import           Chess.Util
+import           Chess.Engine.State             ( boardFEN
                                                 , getMaterial
                                                 , getBishopColors
                                                 , nextTurn
@@ -28,14 +20,9 @@ import           Chess.Engine.Moves             ( availableActions
                                                 , checkToAddress
                                                 )
 
--- | An enumeration of the possible causes of a tie.
-data TieCause = FiftyMoveRule | Stalemate | ThreefoldRepetition | InsufficientMaterial deriving (Show, Eq)
-
--- | An ADT for possible results of a game.
-data GameResult = Win Color | Tie TieCause deriving (Show, Eq)
-
--- | A 'TerminationRule' determines whether a game has finished, giving the result if so.
-type TerminationRule = Game -> Maybe GameResult
+import qualified Data.Set                      as Set
+import           Data.Maybe                     ( listToMaybe )
+import           Data.Foldable                  ( asum )
 
 -- | The enemy wins if the current player is in check and cannot move out of it.
 checkmateRule :: TerminationRule

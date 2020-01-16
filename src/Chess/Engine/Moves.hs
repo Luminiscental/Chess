@@ -1,9 +1,5 @@
 module Chess.Engine.Moves
-    ( Move(..)
-    , Action(..)
-    , MoveRule
-    , ActionRule
-    , actionSAN
+    ( actionSAN
     , getMove
     , applyMove
     , applyAction
@@ -18,21 +14,15 @@ module Chess.Engine.Moves
     )
 where
 
-import           Chess.Util                     ( rangeExclusive
-                                                , rangeInclusive
-                                                )
-import           Chess.Engine.State             ( Board
-                                                , BoardIx
-                                                , Game(..)
-                                                , Piece(..)
-                                                , PieceType(..)
-                                                , Color(..)
-                                                , stepGame
+import           Chess.Types
+import           Chess.Util
+import           Chess.Engine.State             ( stepGame
                                                 , boardRange
                                                 , nextTurn
                                                 , pieceFEN
                                                 , squareSAN
                                                 )
+
 import qualified Data.Char                     as Char
 import           Data.Array.IArray              ( (!)
                                                 , (//)
@@ -50,22 +40,6 @@ import           Control.Monad                  ( mfilter
                                                 , guard
                                                 )
 
--- | A 'Move' record contains the start and end locations of a move, including any side effect
--- moves for castling, and an updating function to apply to the moved piece.
-data Move = Move { movesFrom :: BoardIx
-                 , movesTo :: BoardIx
-                 , updater :: Piece -> Piece
-                 , sideEffect :: Maybe Move }
-
--- | An 'Action' represents a 'Move' with metadata about where and whether a capture occurs.
-data Action = NoCapture Move | Capture BoardIx Move
-
--- | A 'MoveRule' generates a list of possible moves from a given position on the board.
-type MoveRule = Board -> BoardIx -> [Move]
-
--- | An 'ActionRule' generates a list of possible actions from a given position on the board.
-type ActionRule = Board -> BoardIx -> [Action]
-
 -- | Check if a given 'Action' is a capture.
 isCapture :: Action -> Bool
 isCapture (Capture _ _) = True
@@ -78,7 +52,7 @@ actionSAN board actions = do
     action <- actions
     let move       = getMove action
     let captures   = isCapture action
-    let captureNot = if captures then "x" else ""
+    let captureNot = [ 'x' | captures ]
     let piece      = board ! movesFrom move
     let target     = movesTo move
     let pieceSAN piece = case pieceType piece of

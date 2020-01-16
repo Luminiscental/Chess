@@ -1,15 +1,16 @@
 module Main where
 
-import           Chess.Engine.State             ( Game(..)
-                                                , startGame
+import           Chess.Types
+import           Chess.Util
+import           Chess.Engine.State             ( startGame
                                                 , pieceFEN
                                                 )
-import           Chess.Engine.Moves             ( Action
-                                                , runAction
+import           Chess.Engine.Moves             ( runAction
                                                 , availableActions
                                                 , actionSAN
                                                 )
 import           Chess.Engine.Rules             ( anyTermination )
+
 import           Data.Foldable                  ( for_ )
 import           Data.Array.IArray              ( (!) )
 
