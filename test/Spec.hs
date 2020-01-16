@@ -42,7 +42,7 @@ import           Chess.Interface.Notation       ( pieceFEN
                                                 , boardFEN
                                                 )
 
--- TODO: Test Chess.Util and Chess.Interface.Notation
+-- TODO: Test getSANs (and in edge cases)
 
 main :: IO ()
 main = defaultMain tests
