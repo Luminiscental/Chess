@@ -3,7 +3,8 @@ Module      : Chess.Types
 Description : Various type definitions for the library.
 
 This module contains type definitions for use in various other modules, extracted into one
-internal module in order to avoid cyclic dependency issues.
+internal module in order to avoid cyclic dependency issues. Also includes basic structure
+inspecting functions like 'getMove'.
 -}
 module Chess.Types
     (
@@ -21,6 +22,8 @@ module Chess.Types
     -- | Various data structures to represent actions or moves in a chess game:
     , Move(..)
     , Action(..)
+    , getMove
+    , captures
     , MoveRule(..)
     , ActionRule(..)
     -- * Types for Chess.Engine.Rules
@@ -63,13 +66,24 @@ data Game = Game { board :: Board, toMove :: Color, halfMoveClock :: Int, fullMo
 
 -- | A 'Move' record contains the start and end locations of a move, including any side effect
 -- moves for castling, and an updating function to apply to the moved piece.
-data Move = Move { movesFrom :: BoardIx
+data Move = Move { movingPiece :: Piece
+                 , movesFrom :: BoardIx
                  , movesTo :: BoardIx
                  , updater :: Piece -> Piece
                  , sideEffect :: Maybe Move }
 
 -- | An 'Action' represents a 'Move' with metadata about where and whether a capture occurs.
 data Action = NoCapture Move | Capture BoardIx Move
+
+-- | Get the underlying 'Move' for an 'Action'.
+getMove :: Action -> Move
+getMove (NoCapture move) = move
+getMove (Capture _ move) = move
+
+-- | Check if an action is a capture.
+captures :: Action -> Bool
+captures (Capture _ _) = True
+captures (NoCapture _) = False
 
 -- | A 'MoveRule' generates a list of possible moves from a given position on the board.
 type MoveRule = Board -> BoardIx -> [Move]

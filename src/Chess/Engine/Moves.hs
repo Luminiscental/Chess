@@ -7,8 +7,7 @@ with the rules for what moves are possible for given pieces and for checking whi
 to make at a given point.
 -}
 module Chess.Engine.Moves
-    ( getMove
-    , applyMove
+    ( applyMove
     , applyAction
     , runAction
     , squareThreatenedBy
@@ -49,12 +48,6 @@ import           Control.Monad                  ( mfilter
 isCapture :: Action -> Bool
 isCapture (Capture _ _) = True
 isCapture (NoCapture _) = False
-
-
--- | Get the underlying 'Move' for an 'Action'.
-getMove :: Action -> Move
-getMove (NoCapture move) = move
-getMove (Capture _ move) = move
 
 -- | Apply a 'Move' to a 'Board'.
 applyMove :: Move -> Board -> Board
@@ -205,15 +198,16 @@ updateWith newUpdater =
 withSideEffect :: Move -> Move -> Move
 withSideEffect effect move = move { sideEffect = Just effect }
 
-moveFrom :: BoardIx -> BoardIx -> Move
-moveFrom start end = Move { movesFrom  = start
-                          , movesTo    = end
-                          , updater    = \piece -> piece { hasMoved = True }
-                          , sideEffect = Nothing
-                          }
+moveFrom :: Board -> BoardIx -> BoardIx -> Move
+moveFrom board start end = Move { movingPiece = fromJust $ board ! start
+                                , movesFrom   = start
+                                , movesTo     = end
+                                , updater = \piece -> piece { hasMoved = True }
+                                , sideEffect  = Nothing
+                                }
 
-captureFrom :: BoardIx -> BoardIx -> Action
-captureFrom start end = Capture end $ moveFrom start end
+captureFrom :: Board -> BoardIx -> BoardIx -> Action
+captureFrom board start end = Capture end $ moveFrom board start end
 
 noCaptures :: MoveRule -> ActionRule
 noCaptures moveRule board start = map NoCapture $ moveRule board start
@@ -237,7 +231,7 @@ checkEnemy brd start at = thatColor == Just enemyColor
 
 lineOfSightMove :: (Int, Int) -> MoveRule
 lineOfSightMove offset brd start =
-    map (moveFrom start) . takeWhile (emptySquareOn brd) $ lineOfSight
+    map (moveFrom brd start) . takeWhile (emptySquareOn brd) $ lineOfSight
         offset
         brd
         start
@@ -247,7 +241,7 @@ lineOfSightNoCapture = noCaptures . lineOfSightMove
 
 lineOfSightCapture :: (Int, Int) -> ActionRule
 lineOfSightCapture offset brd start =
-    map (captureFrom start)
+    map (captureFrom brd start)
         . filter (checkEnemy brd start)
         . take 1
         . dropWhile (emptySquareOn brd)
@@ -258,7 +252,7 @@ jumpNoCapture = nthAction 1 . lineOfSightNoCapture
 
 jumpCapture :: (Int, Int) -> ActionRule
 jumpCapture offset brd start =
-    map (captureFrom start)
+    map (captureFrom brd start)
         . filter (checkEnemy brd start)
         . take 1
         $ lineOfSight offset brd start
@@ -299,7 +293,7 @@ enPassant color dx brd (sx, sy) = do
         False
         enPassantTarget
         (brd ! target)
-    action = Capture target $ moveFrom (sx, sy) end
+    action = Capture target $ moveFrom brd (sx, sy) end
 
 checkPawnPromotion :: ActionRule -> ActionRule
 checkPawnPromotion rule board pos = do
@@ -335,8 +329,8 @@ castleMoveRule kingDirX brd (kingX, kingY) = do
         [ (kingX + n * kingDirX, kingY) | n <- [1 ..] ]
     betweenSquares    = [ (x, kingY) | x <- rangeExclusive kingX rookX ]
     kingTravelSquares = [ (x, kingY) | x <- rangeInclusive kingX kingTargetX ]
-    kingMove          = moveFrom (kingX, kingY) (kingTargetX, kingY)
-    rookMove          = moveFrom (rookX, kingY) (rookTargetX, kingY)
+    kingMove          = moveFrom brd (kingX, kingY) (kingTargetX, kingY)
+    rookMove          = moveFrom brd (rookX, kingY) (rookTargetX, kingY)
     rookTargetX       = kingX + kingDirX
     kingTargetX       = rookTargetX + kingDirX
     kingPiece         = fromJust $ brd ! (kingX, kingY)

@@ -62,7 +62,18 @@ boardFEN brd = List.intercalate "/" rows
         blankCount              = 1 + length empties
         afterBlanks             = displayRow afterEmpties
 
--- TODO
+-- TODO: Pawn promotion, castling, check/checkmate
 -- | Get the algebraic notation for each 'Action' in a list, disambiguating within the list.
 actionsSAN :: [Action] -> [String]
-actionsSAN actions = []
+actionsSAN actions = simplifySANs verboseSANs
+  where
+    verboseSANs = do
+        action <- actions
+        let move        = getMove action
+        let piece       = movingPiece move
+        let pieceNote = Char.toUpper . pieceTypeChar . pieceType $ piece
+        let startNote   = squareSAN . movesFrom $ move
+        let captureNote = if captures action then "x" else ""
+        let targetNote  = squareSAN . movesTo $ move
+        return (pieceNote, startNote, captureNote, targetNote)
+    simplifySANs verbose = undefined
