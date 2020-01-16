@@ -109,4 +109,6 @@ data VerboseSAN = VerboseSAN { pieceNote :: String
                              , startFile :: Int
                              , startRank :: Int
                              , captureNote :: String
-                             , targetNote :: String }
+                             , targetNote :: String
+                             , updatedPieceNote :: String
+                             , castleNote :: String }

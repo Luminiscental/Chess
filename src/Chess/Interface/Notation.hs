@@ -22,7 +22,9 @@ import           Chess.Util
 import qualified Data.Char                     as Char
 import qualified Data.List                     as List
 import           Data.Function                  ( on )
-import           Data.Maybe                     ( isNothing )
+import           Data.Maybe                     ( isJust
+                                                , isNothing
+                                                )
 import           Data.Array.IArray              ( (!)
                                                 , range
                                                 )
@@ -71,46 +73,64 @@ boardFEN brd = List.intercalate "/" rows
         blankCount              = 1 + length empties
         afterBlanks             = displayRow afterEmpties
 
--- TODO: Pawn promotion, castling, check/checkmate
-
 -- | Get the standard algebraic notation for each 'Action' in a list, disambiguating within the
 -- given list only.
 getSANs :: [Action] -> [String]
 getSANs = simplifyVerboseSANs . map getVerboseSAN
 
+-- TODO: Append check/checkmate symbols?
+
 -- | Get the 'VerboseSAN' for a given action.
 getVerboseSAN :: Action -> VerboseSAN
 getVerboseSAN action =
-    let move                   = getMove action
+    let
+        move                   = getMove action
         isCapture              = captures action
         piece                  = movingPiece move
         (startFile, startRank) = movesFrom move
         pieceNote              = case pieceType piece of
             Pawn  -> if isCapture then [fileChar startFile] else ""
             other -> [Char.toUpper . pieceTypeChar $ other]
-        captureNote = if isCapture then "x" else ""
-        targetNote  = squareSAN . movesTo $ move
-    in  VerboseSAN { pieceNote   = pieceNote
-                   , startFile   = startFile
-                   , startRank   = startRank
-                   , captureNote = captureNote
-                   , targetNote  = targetNote
+        captureNote  = if isCapture then "x" else ""
+        targetNote   = squareSAN . movesTo $ move
+        updatedPiece = updater move piece
+        updatedPieceNote =
+            [Char.toUpper . pieceTypeChar . pieceType $ updatedPiece]
+        castleNote = if isJust (sideEffect move)
+            then case head targetNote of
+                'a' -> "O-O-O"
+                'h' -> "O-O"
+            else ""
+    in
+        VerboseSAN { pieceNote        = pieceNote
+                   , startFile        = startFile
+                   , startRank        = startRank
+                   , captureNote      = captureNote
+                   , targetNote       = targetNote
+                   , updatedPieceNote = updatedPieceNote
+                   , castleNote       = castleNote
                    }
 
 -- | Simplify a list of 'VerboseSAN's down to the canonical SAN as a string, disambiguating within
 -- the given list only.
 simplifyVerboseSANs :: [VerboseSAN] -> [String]
 simplifyVerboseSANs = disambiguate
-    [ (equatePieceAndTarget, specify (const ""))
+    [ (equateCastle        , castleNote)
+    , (equatePieceAndTarget, specify (const ""))
     , (equateFile          , specify file)
     , (equateRank          , specify rank)
     , (equateRankAndFile   , specify square)
+    , (defaultCase         , showPromotion)
     ]
   where
+    equateCastle         = (==) `on` castleNote
     equatePieceAndTarget = (==) `on` (,) <$> pieceNote <*> targetNote
     equateFile           = (==) `on` startFile
     equateRank           = (==) `on` startRank
     equateRankAndFile    = (==) `on` (,) <$> startFile <*> startRank
+
+    defaultCase          = const . const $ False
+    showPromotion san = specify square san ++ updatedPieceNote san
 
     specify fn san = pieceNote san ++ fn san ++ otherNotes san
     file   = show . fileChar . startFile
