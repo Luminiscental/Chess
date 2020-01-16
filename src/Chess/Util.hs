@@ -1,3 +1,10 @@
+{-|
+Module      : Chess.Util
+Description : Various utility functions.
+
+This module contains generic utility functions used throughout the library that aren't specific
+to the domain of the library.
+-}
 module Chess.Util
     ( mkArray
     , packString

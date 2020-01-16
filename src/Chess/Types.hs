@@ -1,24 +1,31 @@
+{-|
+Module      : Chess.Types
+Description : Various type definitions for the library.
+
+This module contains type definitions for use in various other modules, extracted into one
+internal module in order to avoid cyclic dependency issues.
+-}
 module Chess.Types
     (
-    -- * 'Chess.Engine.State' types
+    -- * Types for Chess.Engine.State
     --
-    -- Various data structures for holding the state of a chess game.
+    -- | Various data structures for holding the state of a chess game:
       Board(..)
     , BoardIx(..)
     , Piece(..)
     , PieceType(..)
     , Color(..)
     , Game(..)
-    -- * 'Chess.Engine.Moves' types
+    -- * Types for Chess.Engine.Moves
     --
-    -- Various data structures to represent actions or moves in a chess game.
+    -- | Various data structures to represent actions or moves in a chess game:
     , Move(..)
     , Action(..)
     , MoveRule(..)
     , ActionRule(..)
-    -- * 'Chess.Engine.Rules' types
+    -- * Types for Chess.Engine.Rules
     --
-    -- Various data structures to represent higher level rules about wins/draws of games.
+    -- | Various data structures to represent higher level rules about wins/draws of games:
     , TieCause(..)
     , GameResult(..)
     , TerminationRule(..)

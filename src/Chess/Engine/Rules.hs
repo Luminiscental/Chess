@@ -1,3 +1,10 @@
+{-|
+Module      : Chess.Engine.Rules
+Description : High-level game termination related rules.
+
+This module defines functions for checking rules related to the end of a chess game, detecting
+ties and wins.
+-}
 module Chess.Engine.Rules
     ( checkmateRule
     , fiftyMoveTie

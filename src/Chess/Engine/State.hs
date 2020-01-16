@@ -1,3 +1,10 @@
+{-|
+Module      : Chess.Engine.State
+Description : Game state definitions.
+
+This module defines functions for manipulating and observing the state of the board, pieces,
+overall game, and so on.
+-}
 module Chess.Engine.State
     ( squareColor
     , nextTurn

@@ -1,3 +1,11 @@
+{-|
+Module      : Chess.Engine.Moves
+Description : Functions for enumerating and working with moves or captures.
+
+This module defines functions for working with possible moves or actions in a chess game, along
+with the rules for what moves are possible for given pieces and for checking which moves are legal
+to make at a given point.
+-}
 module Chess.Engine.Moves
     ( actionSAN
     , getMove
