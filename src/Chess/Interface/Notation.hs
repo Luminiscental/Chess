@@ -97,9 +97,9 @@ getVerboseSAN action =
         updatedPieceNote =
             [Char.toUpper . pieceTypeChar . pieceType $ updatedPiece]
         castleNote = if isJust (sideEffect move)
-            then case head targetNote of
-                'a' -> "O-O-O"
-                'h' -> "O-O"
+            then case fileChar . fst . movesTo $ move of
+                'c' -> "O-O-O"
+                'g' -> "O-O"
             else ""
     in
         VerboseSAN { pieceNote        = pieceNote
@@ -115,26 +115,29 @@ getVerboseSAN action =
 -- within the given list.
 simplifyVerboseSANs :: [VerboseSAN] -> [String]
 simplifyVerboseSANs = disambiguate
-    [ (equateCastle        , castleNote)
-    , (equatePieceAndTarget, specify (const ""))
-    , (equateFile          , specify file)
-    , (equateRank          , specify rank)
-    , (equateRankAndFile   , specify square)
-    , (defaultCase         , showPromotion)
+    [ (equateCastle             , castleNote)
+    , (equatePieceTarget        , specify (const ""))
+    , (equatePieceTargetFile    , specify file)
+    , (equatePieceTargetRank    , specify rank)
+    , (equatePieceTargetRankFile, specify square)
+    , (defaultCase              , showPromotion)
     ]
   where
-    equateCastle         = (==) `on` castleNote
-    equatePieceAndTarget = (==) `on` (,) <$> pieceNote <*> targetNote
-    equateFile           = (==) `on` startFile
-    equateRank           = (==) `on` startRank
-    equateRankAndFile    = (==) `on` (,) <$> startFile <*> startRank
+    equateCastle      = (==) `on` castleNote
+    equatePieceTarget = (==) `on` (,) <$> pieceNote <*> targetNote
+    equatePieceTargetFile =
+        (==) `on` (,,) <$> pieceNote <*> targetNote <*> startFile
+    equatePieceTargetRank =
+        (==) `on` (,,) <$> pieceNote <*> targetNote <*> startRank
+    equatePieceTargetRankFile =
+        (==) `on` (,,,) <$> pieceNote <*> targetNote <*> startFile <*> startRank
 
-    defaultCase          = const . const $ False
+    defaultCase = const . const $ False
     showPromotion san = specify square san ++ updatedPieceNote san
 
     specify fn san = pieceNote san ++ fn san ++ otherNotes san
-    file   = show . fileChar . startFile
-    rank   = show . rankChar . startRank
+    file   = return . fileChar . startFile
+    rank   = return . rankChar . startRank
     square = squareSAN . startSquare
     startSquare san = (startFile san, startRank san)
     otherNotes san = captureNote san ++ targetNote san

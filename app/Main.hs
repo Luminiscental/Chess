@@ -27,8 +27,8 @@ getChosenAction game = do
     let notations = getSANs actions
     for_ (zip [1 ..] notations)
         $ \(idx, notation) -> putStrLn (show idx ++ ": " ++ notation)
-    idx <- subtract 1 <$> readLn
-    return $ actions !! idx
+    idx <- readLn
+    return $ actions !! (idx - 1)
 
 main :: IO ()
 main = go startGame

@@ -10,7 +10,6 @@ module Chess.Util
     , packString
     , rangeExclusive
     , rangeInclusive
-    , groupsFrom
     , disambiguate
     )
 where
@@ -54,39 +53,22 @@ rangeInclusive a b = [small .. big]
     small = min a b
     big   = max a b
 
--- | An equivalent of 'Data.List.groupBy' that doesn't only group adjacent elements, and hence
--- doesn't preserve order.
+-- | Disambiguate elements of a list; given a list of equating functions paired with output
+-- functions, maps each element of the list by the output function corresponding to the first
+-- equating function that it is unique in.
 --
 -- For example:
 --
--- >>> groupsFrom (==) [1, 3, 2, 1, 1, 2, 2, 2]
--- [[1, 1, 1], [3], [2, 2, 2, 2]]
---
--- >>> groupBy (==) [1, 3, 2, 1, 1, 2, 2, 2]
--- [[1], [3], [2], [1, 1], [2, 2, 2]]
-groupsFrom :: (a -> a -> Bool) -> [a] -> [[a]]
-groupsFrom pred list = case list of
-    []     -> []
-    x : xs -> (x : similar) : groupsFrom pred different
-        where (similar, different) = List.partition (pred x) xs
-
--- | Disambiguate elements of a list, grouping by a list of comparators and corresponding output
--- functions. Each element of the list is converted by the output function corresponding to the
--- first comparator that it is unique in. If the function runs out of comparators and there are
--- still elements to convert it errors. Order is not preserved!
---
--- For example:
---
--- >>> disambiguate [((==) `on` fst, const 0), ((==) `on` snd, snd)] [(1, 4), (2, 4), (2, 5)]
+-- >>> disambiguate [((==) `on` fst, const 0), ((==) `on` snd, snd)] [(1, 3), (2, 4), (2, 5)]
 -- [0, 4, 5]
 --
 -- >>> disambiguate [((==), negate), (\_ _ -> False, id)] [1, 3, 2, 1, 1]
--- [-3, -2, 1, 1, 1]
+-- [1, -3, -2, 1, 1]
 disambiguate :: [(a -> a -> Bool, a -> b)] -> [a] -> [b]
-disambiguate _  [] = []
-disambiguate [] _  = error "Couldn't fully disambiguate list"
-disambiguate stages list =
-    let (pred, fn) : nextStages = stages
-        groups                  = groupsFrom pred list
-        (unique, ambiguous)     = List.partition ((== 1) . length) groups
-    in  map (fn . head) unique ++ disambiguate nextStages (concat ambiguous)
+disambiguate stages = map <$> firstUnique stages <*> id
+  where
+    firstUnique [] _ _ = error "Couldn't disambiguate list"
+    firstUnique ((eqFn, outFn) : rest) list value =
+        if (> 1) . length . filter (eqFn value) $ list
+            then firstUnique rest list value
+            else outFn value

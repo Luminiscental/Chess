@@ -61,17 +61,14 @@ utilTests = testGroup
     @?= rangeInclusive 7 3
     , testCase "Exclusive range values" $ rangeExclusive 1 3 @?= [2]
     , testCase "Inclusive range values" $ rangeInclusive 1 100 @?= [1 .. 100]
-    , testCase "Group from equality"
-    $   groupsFrom (==) [1, 3, 2, 1, 1, 2, 2, 2]
-    @?= [[1, 1, 1], [3], [2, 2, 2, 2]]
     , testCase "Disambiguate tuples"
     $   disambiguate [((==) `on` fst, const 0), ((==) `on` snd, snd)]
-                     [(1, 4), (2, 4), (2, 5)]
+                     [(1, 3), (2, 4), (2, 5)]
     @?= [0, 4, 5]
     , testCase "Disambiguate integers"
     $   disambiguate [((==), negate), (const (const False), id)]
                      [1, 3, 2, 1, 1]
-    @?= [-3, -2, 1, 1, 1]
+    @?= [1, -3, -2, 1, 1]
     ]
 
 stateTests :: TestTree
