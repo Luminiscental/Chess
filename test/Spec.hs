@@ -44,8 +44,6 @@ import           Chess.Interface.Notation       ( squareSAN
                                                 , getSANs
                                                 )
 
--- TODO: Test getSANs (and in edge cases)
-
 main :: IO ()
 main = defaultMain tests
 
