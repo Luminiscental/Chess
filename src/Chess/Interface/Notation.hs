@@ -135,7 +135,7 @@ simplifyVerboseSANs verbose =
         (==) `on` (,,,) <$> pieceNote <*> targetNote <*> startFile <*> startRank
 
     defaultCase = const . const $ False
-    showPromotion san = specify square san ++ updatedPieceNote san
+    showPromotion san = specify (const "") san ++ updatedPieceNote san
 
     specify fn san = pieceNote san ++ fn san ++ otherNotes san
     file   = return . fileChar . startFile
