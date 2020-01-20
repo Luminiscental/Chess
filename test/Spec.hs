@@ -380,6 +380,37 @@ notationTests = testGroup
                 (emptyBoard // [((5, 2), Just $ Piece Pawn Black True False)])
             )
     @?= Set.fromList ["e1Q", "e1R", "e1N", "e1B"]
-    -- TODO: Normal captures, en passant, disambiguated captures
+    , testCase "En passant notation"
+    $      "dxc6"
+    `elem` listSANs
+               White
+               (  emptyBoard
+               // [ ((3, 5), Just $ Piece Pawn Black True True)
+                  , ((4, 5), Just $ Piece Pawn White True False)
+                  ]
+               )
+    @?     "En passant SAN should be given"
+    , testCase "Simple capture"
+    $      "Qxe4"
+    `elem` listSANs
+               Black
+               (  emptyBoard
+               // [ ((3, 2), Just $ Piece Queen Black True False)
+                  , ((5, 4), Just $ Piece Pawn White True True)
+                  ]
+               )
+    @?     "Capture SAN should be given"
+    , testCase "Disambiguated capture"
+    $      "Qa5xd8"
+    `elem` listSANs
+               White
+               (  emptyBoard
+               // [ ((4, 5), Just $ Piece Queen White False False)
+                  , ((1, 5), Just $ Piece Queen White False False)
+                  , ((1, 8), Just $ Piece Queen White False False)
+                  , ((4, 8), Just $ Piece Knight Black False False)
+                  ]
+               )
+    @?     "Disambiguated capture SAN should be given"
     ]
     where listSANs player = getSANs . availableActions . flip makeGame player
