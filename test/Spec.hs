@@ -38,8 +38,10 @@ import           Chess.Engine.Moves             ( applyMove
                                                 , availableActions
                                                 , actionsForColor
                                                 )
-import           Chess.Interface.Notation       ( pieceFEN
+import           Chess.Interface.Notation       ( squareSAN
+                                                , pieceFEN
                                                 , boardFEN
+                                                , getSANs
                                                 )
 
 -- TODO: Test getSANs (and in edge cases)
@@ -48,7 +50,9 @@ main :: IO ()
 main = defaultMain tests
 
 tests :: TestTree
-tests = testGroup "Tests" [stateTests, ruleTests, moveTests, utilTests]
+tests = testGroup
+    "Tests"
+    [stateTests, ruleTests, moveTests, utilTests, notationTests]
 
 utilTests :: TestTree
 utilTests = testGroup
@@ -302,3 +306,80 @@ moveTests = testGroup
         )
     @?= 4
     ]
+
+notationTests :: TestTree
+notationTests = testGroup
+    "Notation"
+    [ testCase "Squares" $ squareSAN (3, 5) @?= "c5"
+    , testCase "Piece FEN" $ pieceFEN (Piece Knight White False False) @?= 'N'
+    , testCase "Board FEN"
+    $   boardFEN defaultBoard
+    @?= "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
+    , testCase "Castle SAN"
+    $      "O-O"
+    `elem` listSANs
+               Black
+               (  emptyBoard
+               // [ ((5, 8), Just $ Piece King Black False False)
+                  , ((8, 8), Just $ Piece Rook Black False False)
+                  ]
+               )
+    @?     "Kingside castle SAN should be given"
+    , testCase "Pawn move SAN"
+    $   listSANs
+            White
+            (emptyBoard // [((1, 3), Just $ Piece Pawn White True False)])
+    @?= ["a4"]
+    , testCase "Knight move SAN"
+    $   Set.fromList
+            (listSANs
+                Black
+                (emptyBoard // [((8, 8), Just $ Piece Knight Black False False)])
+            )
+    @?= Set.fromList ["Nf7", "Ng6"]
+    , testCase "Move disambiguation"
+    $                Set.fromList ["R1a3", "Rdf8", "Qh4e1"]
+    `Set.isSubsetOf` Set.fromList
+                         (listSANs
+                             White
+                             (  emptyBoard
+                             // [
+                             -- Rooks need to specify rank here (R1a3)
+                                  ( (1, 1)
+                                  , Just $ Piece Rook White False False
+                                  )
+                                , ( (1, 5)
+                                  , Just $ Piece Rook White False False
+                                  )
+                            -- Rooks need to specify file here (Rdf8)
+                                , ( (4, 8)
+                                  , Just $ Piece Rook White False False
+                                  )
+                                , ( (8, 8)
+                                  , Just $ Piece Rook White False False
+                                  )
+                                ,
+                            -- Queens need to specify both rank and file here (Qh4e1)
+                                  ( (5, 4)
+                                  , Just $ Piece Queen White False False
+                                  )
+                                , ( (8, 4)
+                                  , Just $ Piece Queen White False False
+                                  )
+                                , ( (8, 1)
+                                  , Just $ Piece Queen White False False
+                                  )
+                                ]
+                             )
+                         )
+    @?               "Disambiguated move SANs should be given"
+    , testCase "Pawn promotion"
+    $   Set.fromList
+            (listSANs
+                Black
+                (emptyBoard // [((5, 2), Just $ Piece Pawn Black True False)])
+            )
+    @?= Set.fromList ["e1Q", "e1R", "e1N", "e1B"]
+    -- TODO: Normal captures, en passant, disambiguated captures
+    ]
+    where listSANs player = getSANs . availableActions . flip makeGame player

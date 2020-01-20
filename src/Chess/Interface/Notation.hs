@@ -114,17 +114,19 @@ getVerboseSAN action =
 -- | Simplify a list of 'VerboseSAN's, mapping to each canonical SAN as a string and disambiguating
 -- within the given list.
 simplifyVerboseSANs :: [VerboseSAN] -> [String]
-simplifyVerboseSANs = disambiguate
-    [ (equateCastle             , castleNote)
-    , (equatePieceTarget        , specify (const ""))
-    , (equatePieceTargetFile    , specify file)
-    , (equatePieceTargetRank    , specify rank)
-    , (equatePieceTargetRankFile, specify square)
-    , (defaultCase              , showPromotion)
-    ]
+simplifyVerboseSANs verbose =
+    map castleNote castleSANs
+        ++ disambiguate
+               [ (equatePieceTarget        , specify (const ""))
+               , (equatePieceTargetFile    , specify file)
+               , (equatePieceTargetRank    , specify rank)
+               , (equatePieceTargetRankFile, specify square)
+               , (defaultCase              , showPromotion)
+               ]
+               nonCastleSANs
   where
-    equateCastle      = (==) `on` castleNote
-    equatePieceTarget = (==) `on` (,) <$> pieceNote <*> targetNote
+    (nonCastleSANs, castleSANs) = List.partition (null . castleNote) verbose
+    equatePieceTarget           = (==) `on` (,) <$> pieceNote <*> targetNote
     equatePieceTargetFile =
         (==) `on` (,,) <$> pieceNote <*> targetNote <*> startFile
     equatePieceTargetRank =
