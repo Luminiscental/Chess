@@ -115,7 +115,8 @@ getVerboseSAN action =
 -- within the given list.
 simplifyVerboseSANs :: [VerboseSAN] -> [String]
 simplifyVerboseSANs = disambiguate
-    [ (separateCastleMoves      , castleNote)
+    [ (singletonCase            , specify (const ""))
+    , (separateCastleMoves      , castleNote)
     , (equatePieceTarget        , specify (const ""))
     , (equatePieceTargetFile    , specify file)
     , (equatePieceTargetRank    , specify rank)
@@ -132,7 +133,8 @@ simplifyVerboseSANs = disambiguate
     equatePieceTargetRankFile =
         (==) `on` (,,,) <$> pieceNote <*> targetNote <*> startFile <*> startRank
 
-    defaultCase = const . const $ False
+    singletonCase = const . const $ True
+    defaultCase   = const . const $ False
     showPromotion san = specify (const "") san ++ updatedPieceNote san
 
     specify fn san = pieceNote san ++ fn san ++ otherNotes san
