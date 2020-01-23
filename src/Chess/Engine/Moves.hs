@@ -113,9 +113,20 @@ availableActions = actionsForColor <$> toMove <*> board
 
 -- | List the available legal moves to a given player on the board.
 actionsForColor :: Color -> Board -> [Action]
-actionsForColor color brd = filter noCheck $ actionsForColorUnchecked color brd
+actionsForColor color brd =
+    map updateThreat . filter noCheck $ actionsForColorUnchecked color brd
   where
+    enemy = nextTurn color
     noCheck action = not . existsCheckAgainst color $ applyAction action brd
+    updateThreat action =
+        let afterBrd  = applyAction action brd
+            check     = existsCheckAgainst enemy afterBrd
+            checkmate = check && (null . actionsForColor enemy $ afterBrd)
+        in  flip updateMove action $ \move -> move
+                { threat = if checkmate
+                               then Just Checkmate
+                               else if check then Just Check else Nothing
+                }
 
 -- | List the available moves to a given player on the board, without disallowing moves that leave
 -- the player in check.
@@ -204,6 +215,7 @@ moveFrom board start end = Move { movingPiece = fromJust $ board ! start
                                 , movesTo     = end
                                 , updater = \piece -> piece { hasMoved = True }
                                 , sideEffect  = Nothing
+                                , threat      = Nothing
                                 }
 
 captureFrom :: Board -> BoardIx -> BoardIx -> Action

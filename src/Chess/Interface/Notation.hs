@@ -78,8 +78,6 @@ boardFEN brd = List.intercalate "/" rows
 getSANs :: [Action] -> [String]
 getSANs = simplifyVerboseSANs . map getVerboseSAN
 
--- TODO: Append check/checkmate symbols?
-
 -- | Get the 'VerboseSAN' for a given action.
 getVerboseSAN :: Action -> VerboseSAN
 getVerboseSAN action =
@@ -91,8 +89,11 @@ getVerboseSAN action =
         pieceNote              = case pieceType piece of
             Pawn  -> if isCapture then [fileChar startFile] else ""
             other -> [Char.toUpper . pieceTypeChar $ other]
-        captureNote  = if isCapture then "x" else ""
-        targetNote   = squareSAN . movesTo $ move
+        captureNote = if isCapture then "x" else ""
+        targetNote  = squareSAN . movesTo $ move
+        threatSuffix Check     = "+"
+        threatSuffix Checkmate = "#"
+        threatNote   = maybe "" threatSuffix (threat move)
         updatedPiece = updater move piece
         updatedPieceNote =
             [Char.toUpper . pieceTypeChar . pieceType $ updatedPiece]
@@ -107,6 +108,7 @@ getVerboseSAN action =
                    , startRank        = startRank
                    , captureNote      = captureNote
                    , targetNote       = targetNote
+                   , threatNote       = threatNote
                    , updatedPieceNote = updatedPieceNote
                    , castleNote       = castleNote
                    }
@@ -115,15 +117,28 @@ getVerboseSAN action =
 -- within the given list.
 simplifyVerboseSANs :: [VerboseSAN] -> [String]
 simplifyVerboseSANs = disambiguate
-    [ (singletonCase            , specify (const ""))
-    , (separateCastleMoves      , castleNote)
-    , (equatePieceTarget        , specify (const ""))
-    , (equatePieceTargetFile    , specify file)
-    , (equatePieceTargetRank    , specify rank)
-    , (equatePieceTargetRankFile, specify square)
-    , (defaultCase              , showPromotion)
+    [ (singletonCase, concatOn [pieceNote, captureNote, targetNote, threatNote])
+    , (separateCastleMoves, concatOn [castleNote])
+    , ( equatePieceTarget
+      , concatOn [pieceNote, captureNote, targetNote, threatNote]
+      )
+    , ( equatePieceTargetFile
+      , concatOn [pieceNote, fileNote, captureNote, targetNote, threatNote]
+      )
+    , ( equatePieceTargetRank
+      , concatOn [pieceNote, rankNote, captureNote, targetNote, threatNote]
+      )
+    , ( equatePieceTargetRankFile
+      , concatOn
+          [pieceNote, fileNote, rankNote, captureNote, targetNote, threatNote]
+      )
+    , ( defaultCase
+      , concatOn
+          [pieceNote, captureNote, targetNote, updatedPieceNote, threatNote]
+      )
     ]
   where
+    concatOn fs san = concatMap ($ san) fs
     separateCastleMoves = (&&) `on` null . castleNote
     equatePieceTarget   = (==) `on` (,) <$> pieceNote <*> targetNote
     equatePieceTargetFile =
@@ -138,8 +153,8 @@ simplifyVerboseSANs = disambiguate
     showPromotion san = specify (const "") san ++ updatedPieceNote san
 
     specify fn san = pieceNote san ++ fn san ++ otherNotes san
-    file   = return . fileChar . startFile
-    rank   = return . rankChar . startRank
-    square = squareSAN . startSquare
+    fileNote = return . fileChar . startFile
+    rankNote = return . rankChar . startRank
+    square   = squareSAN . startSquare
     startSquare san = (startFile san, startRank san)
     otherNotes san = captureNote san ++ targetNote san

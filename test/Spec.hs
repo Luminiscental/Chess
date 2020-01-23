@@ -171,6 +171,7 @@ moveTests = testGroup
                  , movesTo     = (5, 7)
                  , updater     = \piece -> piece { hasMoved = True }
                  , sideEffect  = Nothing
+                 , threat      = Nothing
                  }
             (emptyBoard // [((3, 4), Just $ Piece Pawn White False False)])
     @?= (emptyBoard // [((5, 7), Just $ Piece Pawn White True False)])
@@ -186,6 +187,7 @@ moveTests = testGroup
                         \piece ->
                             piece { hasMoved = True, enPassantTarget = True }
                     , sideEffect  = Nothing
+                    , threat      = Nothing
                     }
             )
             (  emptyBoard
@@ -207,7 +209,9 @@ moveTests = testGroup
                                     , movesTo     = (2, 2)
                                     , updater     = id
                                     , sideEffect  = Nothing
+                                    , threat      = Nothing
                                     }
+                , threat      = Nothing
                 }
             (  emptyBoard
             // [ ((7, 6), Just $ Piece Pawn White False False)
@@ -227,6 +231,7 @@ moveTests = testGroup
                                 , movesTo     = (3, 3)
                                 , updater = \piece -> piece { hasMoved = True }
                                 , sideEffect  = Nothing
+                                , threat      = Nothing
                                 }
                 )
                 startGame
@@ -406,5 +411,26 @@ notationTests = testGroup
                   ]
                )
     @?     "Disambiguated capture SAN should be given"
+    , testCase "Check threat"
+    $      "Qa4+"
+    `elem` listSANs
+               White
+               (  emptyBoard
+               // [ ((1, 1), Just $ Piece King Black True False)
+                  , ((5, 4), Just $ Piece Queen White True False)
+                  ]
+               )
+    @?     "Check SAN should be given"
+    , testCase "Checkmate threat"
+    $      "Rc8#"
+    `elem` listSANs
+               Black
+               (  emptyBoard
+               // [ ((7, 8), Just $ Piece King White True False)
+                  , ((3, 2), Just $ Piece Rook Black True False)
+                  , ((4, 7), Just $ Piece Queen Black True False)
+                  ]
+               )
+    @?     "Checkmate SAN should be given"
     ]
     where listSANs player = getSANs . availableActions . flip makeGame player

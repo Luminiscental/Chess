@@ -22,6 +22,7 @@ module Chess.Types
     -- | Various data structures to represent actions or moves in a chess game:
     , Move(..)
     , Action(..)
+    , Threat(..)
     , getMove
     , captures
     , MoveRule(..)
@@ -68,13 +69,17 @@ data Color = Black | White
 data Game = Game { board :: Board, toMove :: Color, halfMoveClock :: Int, fullMoveCount :: Int, prevBoardFENs :: [ByteString] }
     deriving (Show, Eq)
 
+-- | Represents possible threats a move could give, used for notation purposes.
+data Threat = Check | Checkmate deriving (Show, Eq)
+
 -- | A 'Move' record contains the start and end locations of a move, including any side effect
 -- moves for castling, and an updating function to apply to the moved piece.
 data Move = Move { movingPiece :: Piece
                  , movesFrom :: BoardIx
                  , movesTo :: BoardIx
                  , updater :: Piece -> Piece
-                 , sideEffect :: Maybe Move }
+                 , sideEffect :: Maybe Move
+                 , threat :: Maybe Threat}
 
 -- | An 'Action' represents a 'Move' with metadata about where and whether a capture occurs.
 data Action = NoCapture Move | Capture BoardIx Move
@@ -110,5 +115,6 @@ data VerboseSAN = VerboseSAN { pieceNote :: String
                              , startRank :: Int
                              , captureNote :: String
                              , targetNote :: String
+                             , threatNote :: String
                              , updatedPieceNote :: String
                              , castleNote :: String }
