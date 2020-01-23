@@ -117,21 +117,12 @@ getVerboseSAN action =
 -- within the given list.
 simplifyVerboseSANs :: [VerboseSAN] -> [String]
 simplifyVerboseSANs = disambiguate
-    [ (singletonCase, concatOn [pieceNote, captureNote, targetNote, threatNote])
-    , (separateCastleMoves, concatOn [castleNote])
-    , ( equatePieceTarget
-      , concatOn [pieceNote, captureNote, targetNote, threatNote]
-      )
-    , ( equatePieceTargetFile
-      , concatOn [pieceNote, fileNote, captureNote, targetNote, threatNote]
-      )
-    , ( equatePieceTargetRank
-      , concatOn [pieceNote, rankNote, captureNote, targetNote, threatNote]
-      )
-    , ( equatePieceTargetRankFile
-      , concatOn
-          [pieceNote, fileNote, rankNote, captureNote, targetNote, threatNote]
-      )
+    [ (singletonCase          , concatOn [pieceNote, genericNotes])
+    , (separateCastleMoves    , concatOn [castleNote])
+    , (equatePieceTarget      , concatOn [pieceNote, genericNotes])
+    , (equatePieceTargetFile  , concatOn [pieceNote, fileNote, genericNotes])
+    , (equatePieceTargetRank  , concatOn [pieceNote, rankNote, genericNotes])
+    , (equatePieceTargetSquare, concatOn [pieceNote, squareNote, genericNotes])
     , ( defaultCase
       , concatOn
           [pieceNote, captureNote, targetNote, updatedPieceNote, threatNote]
@@ -145,16 +136,14 @@ simplifyVerboseSANs = disambiguate
         (==) `on` (,,) <$> pieceNote <*> targetNote <*> startFile
     equatePieceTargetRank =
         (==) `on` (,,) <$> pieceNote <*> targetNote <*> startRank
-    equatePieceTargetRankFile =
-        (==) `on` (,,,) <$> pieceNote <*> targetNote <*> startFile <*> startRank
+    equatePieceTargetSquare =
+        (==) `on` (,,) <$> pieceNote <*> targetNote <*> getSquare
 
     singletonCase = const . const $ True
     defaultCase   = const . const $ False
-    showPromotion san = specify (const "") san ++ updatedPieceNote san
 
-    specify fn san = pieceNote san ++ fn san ++ otherNotes san
-    fileNote = return . fileChar . startFile
-    rankNote = return . rankChar . startRank
-    square   = squareSAN . startSquare
-    startSquare san = (startFile san, startRank san)
-    otherNotes san = captureNote san ++ targetNote san
+    fileNote      = return . fileChar . startFile
+    rankNote      = return . rankChar . startRank
+    squareNote    = squareSAN . getSquare
+    getSquare     = (,) <$> startFile <*> startRank
+    genericNotes  = concatOn [captureNote, targetNote, threatNote]
