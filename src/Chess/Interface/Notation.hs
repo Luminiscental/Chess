@@ -1,6 +1,6 @@
 {-|
 Module      : Chess.Interface.Notation
-Description : Notation export functions.
+Description : Notation functions.
 
 This module defines functions to generate string representations (FEN, SAN, e.t.c.) from parts of
 the game state.

@@ -1,3 +1,9 @@
+{-|
+Module      : Chess.Interface.Export
+Description : Export functions for formats such as FEN and PGN.
+
+This module defines functions to convert data like 'Game' objects into formats to be exported.
+-}
 module Chess.Interface.Export
     ( exportFEN
     )
@@ -16,6 +22,7 @@ import           Chess.Engine.Moves             ( actionsForColor
                                                 , castlingRightsFor
                                                 )
 
+-- | Get the FEN notation for a given position.
 exportFEN :: Game -> String
 exportFEN game = unwords
     [ piecePlacement
