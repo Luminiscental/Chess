@@ -43,6 +43,7 @@ import           Chess.Interface.Notation       ( squareSAN
                                                 , boardFEN
                                                 , getSANs
                                                 )
+import           Chess.Interface.Export         ( exportFEN )
 
 main :: IO ()
 main = defaultMain tests
@@ -50,7 +51,7 @@ main = defaultMain tests
 tests :: TestTree
 tests = testGroup
     "Tests"
-    [stateTests, ruleTests, moveTests, utilTests, notationTests]
+    [stateTests, ruleTests, moveTests, utilTests, notationTests, exportTests]
 
 utilTests :: TestTree
 utilTests = testGroup
@@ -90,7 +91,7 @@ stateTests = testGroup
     $   halfMoveClock (stepGame emptyBoard False startGame)
     @?= 1
     , testCase "Start game" $ toMove startGame @?= White
-    , testCase "Full move count" $ fullMoveCount (dummySteps 3 startGame) @?= 1
+    , testCase "Full move count" $ fullMoveCount (dummySteps 3 startGame) @?= 2
     ]
   where
     dummySteps n = foldr (.) id $ replicate n (stepGame defaultBoard False)
@@ -434,3 +435,17 @@ notationTests = testGroup
     @?     "Checkmate SAN should be given"
     ]
     where listSANs player = getSANs . availableActions . flip makeGame player
+
+exportTests :: TestTree
+exportTests = testGroup
+    "Exports"
+    [ testCase "FEN notation - Game start"
+    $   exportFEN startGame
+    @?= "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    , testCase "FEN notation - En passant"
+    $   exportFEN (runAction e4 startGame)
+    @?= "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"
+    ]
+  where
+    startActionAssocs = zip <$> id <*> getSANs $ availableActions startGame
+    e4 = fst . head . filter ((==) "e4" . snd) $ startActionAssocs

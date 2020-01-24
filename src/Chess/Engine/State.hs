@@ -123,7 +123,7 @@ makeGame :: Board -> Color -> Game
 makeGame brd firstMove = Game { board         = brd
                               , toMove        = firstMove
                               , halfMoveClock = 0
-                              , fullMoveCount = 0
+                              , fullMoveCount = 1
                               , prevBoardFENs = []
                               }
 

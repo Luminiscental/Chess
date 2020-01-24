@@ -20,6 +20,7 @@ module Chess.Types
     -- * Types for Chess.Engine.Moves
     --
     -- | Various data structures to represent actions or moves in a chess game:
+    , BoardSide(..)
     , Move(..)
     , Action(..)
     , Threat(..)
@@ -71,6 +72,10 @@ data Game = Game { board :: Board, toMove :: Color, halfMoveClock :: Int, fullMo
 
 -- | Represents possible threats a move could give, used for notation purposes.
 data Threat = Check | Checkmate deriving (Show, Eq)
+
+-- | A 'BoardSide' is used for castling rights, distinguishing the two horizontal halves of the
+-- board.
+data BoardSide = Kingside | Queenside deriving (Show, Eq)
 
 -- | A 'Move' record contains the start and end locations of a move, including any side effect
 -- moves for castling, and an updating function to apply to the moved piece.
