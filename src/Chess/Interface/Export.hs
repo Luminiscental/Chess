@@ -28,9 +28,7 @@ exportFEN game = unwords
   where
     brd            = board game
     piecePlacement = boardFEN brd
-    activeColor    = case toMove game of
-        White -> "w"
-        Black -> "b"
+    activeColor    = map toLower . take 1 . show . toMove $ game
     castlingRights = case whiteCastles ++ blackCastles of
         []  -> "-"
         str -> str
