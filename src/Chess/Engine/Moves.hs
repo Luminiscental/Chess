@@ -229,8 +229,8 @@ validSquare = inRange boardRange
 emptySquareOn :: Board -> BoardIx -> Bool
 emptySquareOn brd pos = isNothing $ brd ! pos
 
-lineOfSight :: (Int, Int) -> Board -> BoardIx -> [BoardIx]
-lineOfSight (dx, dy) brd (sx, sy) =
+lineOfSight :: (Int, Int) -> BoardIx -> [BoardIx]
+lineOfSight (dx, dy) (sx, sy) =
     takeWhile validSquare [ (sx + n * dx, sy + n * dy) | n <- [1 ..] ]
 
 checkEnemy :: Board -> BoardIx -> BoardIx -> Bool
@@ -244,7 +244,6 @@ lineOfSightMove :: (Int, Int) -> MoveRule
 lineOfSightMove offset brd start =
     map (moveFrom brd start) . takeWhile (emptySquareOn brd) $ lineOfSight
         offset
-        brd
         start
 
 lineOfSightNoCapture :: (Int, Int) -> ActionRule
@@ -256,7 +255,7 @@ lineOfSightCapture offset brd start =
         . filter (checkEnemy brd start)
         . take 1
         . dropWhile (emptySquareOn brd)
-        $ lineOfSight offset brd start
+        $ lineOfSight offset start
 
 jumpNoCapture :: (Int, Int) -> ActionRule
 jumpNoCapture = nthAction 1 . lineOfSightNoCapture
@@ -266,10 +265,7 @@ jumpCapture offset brd start =
     map (captureFrom brd start)
         . filter (checkEnemy brd start)
         . take 1
-        $ lineOfSight offset brd start
-  where
-    isEnemy pos =
-        (pieceColor <$> brd ! pos) == (nextTurn . pieceColor <$> brd ! start)
+        $ lineOfSight offset start
 
 pawnDirection :: Color -> (Int, Int)
 pawnDirection White = (0, 1)

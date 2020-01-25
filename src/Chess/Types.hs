@@ -100,7 +100,7 @@ data Piece = Piece { pieceType :: PieceType, pieceColor :: Color, hasMoved :: Bo
     deriving (Show, Eq)
 
 -- | An enumeration of the different types of 'Piece'.
-data PieceType = Pawn | Rook | Knight | Bishop | Queen | King
+data PieceType = Pawn | Knight | Bishop | Rook | Queen | King
     deriving (Show, Eq, Ord)
 
 -- | An enumeration of the two player colors.
