@@ -18,14 +18,14 @@ where
 
 import           Chess.Types
 import           Chess.Util
-import           Chess.Engine.State             ( getMaterial
-                                                , getBishopColors
-                                                , nextTurn
+import           Chess.Engine.State             ( nextTurn )
+import           Chess.Engine.Metrics           ( bothMaterial
+                                                , bishopColorsFor
                                                 )
 import           Chess.Engine.Moves             ( availableActions
                                                 , checkToAddress
                                                 )
-import           Chess.Interface.Notation       ( boardFEN )
+import           Chess.Interface.FEN            ( boardFEN )
 
 import qualified Data.Set                      as Set
 import           Data.Maybe                     ( listToMaybe )
@@ -45,9 +45,10 @@ fiftyMoveTie game =
 
 -- | Draw if there is an insufficient material imbalance for someone to checkmate.
 insufficientMaterialTie :: TerminationRule
-insufficientMaterialTie game = if gameMaterial `elem` materialStates
-    then Just $ Tie InsufficientMaterial
-    else Nothing
+insufficientMaterialTie game =
+    if (whiteMaterial, blackMaterial) `elem` materialStates
+        then Just $ Tie InsufficientMaterial
+        else Nothing
   where
     materialStates =
         [ (Set.fromList [King]        , Set.fromList [King])
@@ -56,7 +57,8 @@ insufficientMaterialTie game = if gameMaterial `elem` materialStates
         , (Set.fromList [King, Knight], Set.fromList [King])
         , (Set.fromList [King]        , Set.fromList [King, Knight])
         ]
-    gameMaterial = getMaterial . board $ game
+    gameBoard                      = board game
+    (whiteMaterial, blackMaterial) = bothMaterial gameBoard
 
 -- | Draw if both sides have the same color bishop and no other pieces.
 doubleBishopTie :: TerminationRule
@@ -65,11 +67,13 @@ doubleBishopTie game = if justBishops && sameColors
     else Nothing
   where
     gameBoard                      = board game
-    (whiteMaterial, blackMaterial) = getMaterial gameBoard
+    (whiteMaterial, blackMaterial) = bothMaterial gameBoard
+    whiteBishopColors              = bishopColorsFor White gameBoard
+    blackBishopColors              = bishopColorsFor Black gameBoard
+
     bishopMaterial                 = Set.fromList [King, Bishop]
     justBishops =
         whiteMaterial == bishopMaterial && blackMaterial == bishopMaterial
-    (whiteBishopColors, blackBishopColors) = getBishopColors gameBoard
     sameColors = whiteBishopColors == blackBishopColors
 
 -- | Draw if the same board state is seen three times.

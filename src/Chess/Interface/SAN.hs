@@ -1,15 +1,6 @@
-{-|
-Module      : Chess.Interface.Notation
-Description : Notation functions.
-
-This module defines functions to generate string representations (FEN, SAN, e.t.c.) from parts of
-the game state.
--}
-module Chess.Interface.Notation
-    ( squareSAN
-    , pieceTypeChar
-    , pieceFEN
-    , boardFEN
+module Chess.Interface.SAN
+    ( pieceTypeChar
+    , squareSAN
     , getSANs
     , getVerboseSAN
     , simplifyVerboseSANs
@@ -20,16 +11,17 @@ import           Chess.Types
 import           Chess.Util
 
 import qualified Data.Char                     as Char
-import qualified Data.List                     as List
+import           Data.Maybe                     ( isJust )
 import           Data.Function                  ( on )
-import           Data.Maybe                     ( isJust
-                                                , isNothing
-                                                )
-import           Data.Array.IArray              ( (!)
-                                                , range
-                                                )
 
--- TODO: Full PGN, FEN, EPD import/export functions
+-- | Get the lower case character for a piece type.
+pieceTypeChar :: PieceType -> Char
+pieceTypeChar Pawn   = 'p'
+pieceTypeChar Rook   = 'r'
+pieceTypeChar Knight = 'n'
+pieceTypeChar Bishop = 'b'
+pieceTypeChar Queen  = 'q'
+pieceTypeChar King   = 'k'
 
 fileChar :: Int -> Char
 fileChar = Char.chr . (+ (Char.ord 'a' - 1))
@@ -40,38 +32,6 @@ rankChar = Char.intToDigit
 -- | Get the standard notation for a square on the board.
 squareSAN :: BoardIx -> String
 squareSAN (file, rank) = [fileChar file, rankChar rank]
-
--- | Get the character representing a given piece type (lower case).
-pieceTypeChar :: PieceType -> Char
-pieceTypeChar Pawn   = 'p'
-pieceTypeChar Rook   = 'r'
-pieceTypeChar Knight = 'n'
-pieceTypeChar Bishop = 'b'
-pieceTypeChar Queen  = 'q'
-pieceTypeChar King   = 'k'
-
--- | Get the FEN notation for a piece.
-pieceFEN :: Piece -> Char
-pieceFEN piece = if pieceColor piece == White
-    then Char.toUpper . pieceTypeChar . pieceType $ piece
-    else pieceTypeChar . pieceType $ piece
-
--- | Get the FEN notation for a given board state, only including piece placements, not the
--- additional metadata.
-boardFEN :: Board -> String
-boardFEN brd = List.intercalate "/" rows
-  where
-    rows =
-        [ displayRow . map (brd !) $ range ((1, row), (8, row))
-        | row <- reverse [1 .. 8]
-        ]
-    displayRow []                  = ""
-    displayRow (Just piece : rest) = pieceFEN piece : displayRow rest
-    displayRow (Nothing    : rest) = Char.intToDigit blankCount : afterBlanks
-      where
-        (empties, afterEmpties) = span isNothing rest
-        blankCount              = 1 + length empties
-        afterBlanks             = displayRow afterEmpties
 
 -- | Get the standard algebraic notation for each 'Action' in a list, disambiguating within the
 -- given list only.

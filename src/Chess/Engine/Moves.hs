@@ -17,7 +17,6 @@ module Chess.Engine.Moves
     , actionsForColor
     , actionsForColorUnchecked
     , pieceRule
-    , castlingRightsFor
     )
 where
 
@@ -187,21 +186,6 @@ pieceRule piece = case pieceType piece of
             | (dirx, diry) <- diagonalLines
             ]
     queenLines = gridLines ++ diagonalLines
-
--- | Returns the list of sides a given color has rights to castle to.
--- 'Kingside' is given before 'Queenside'.
-castlingRightsFor :: Color -> Board -> [BoardSide]
-castlingRightsFor color brd =
-    [ Kingside | rights right ] ++ [ Queenside | rights left ]
-  where
-    (left, right) = (-1, 1)
-    rights dir =
-        let kingX     = 5
-            rookX     = min 8 $ kingX + 4 * dir
-            rank      = max 1 $ 8 * dir
-            kingMoved = maybe False hasMoved $ brd ! (kingX, rank)
-            rookMoved = maybe False hasMoved $ brd ! (rookX, rank)
-        in  not kingMoved && not rookMoved
 
 concatActionRules :: [ActionRule] -> ActionRule
 concatActionRules rules brd pos = concatMap (\rule -> rule brd pos) rules

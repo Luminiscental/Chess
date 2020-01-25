@@ -12,6 +12,7 @@ tests:
     - Chess
 maintainer: luminiscental01@gmail.com
 dependencies:
+- parsec
 - bytestring
 - tasty
 - tasty-hunit

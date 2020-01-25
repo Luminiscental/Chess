@@ -6,32 +6,29 @@ This module defines functions for manipulating and observing the state of the bo
 overall game, and so on.
 -}
 module Chess.Engine.State
-    ( squareColor
-    , nextTurn
+    ( nextTurn
     , stepGame
     , makeGame
     , startGame
     , boardRange
     , emptyBoard
     , defaultBoard
-    , getMaterial
-    , getBishopColors
     )
 where
 
 import           Chess.Types
 import           Chess.Util
-import           Chess.Interface.Notation       ( boardFEN )
+import           Chess.Interface.FEN            ( boardFEN )
 
-import           Data.ByteString                ( ByteString )
+import qualified Data.Char                     as Char
+import qualified Data.List                     as List
 import qualified Data.ByteString               as ByteString
+import           Data.ByteString                ( ByteString )
+import qualified Data.Set                      as Set
+import           Data.Set                       ( Set )
 import           Data.Maybe                     ( catMaybes
                                                 , isNothing
                                                 )
-import qualified Data.Char                     as Char
-import qualified Data.List                     as List
-import           Data.Set                       ( Set )
-import qualified Data.Set                      as Set
 import           Data.Array.IArray              ( Array
                                                 , elems
                                                 , assocs
@@ -48,12 +45,6 @@ nextTurn Black = White
 -- | The range of valid chess board indices.
 boardRange :: (BoardIx, BoardIx)
 boardRange = ((1, 1), (8, 8))
-
--- | Get the color of a square on the board, used for describing bishop colors.
-squareColor :: BoardIx -> Color
-squareColor (column, row) =
-    if (column + row) `mod` 2 == 0 then Black else White
-
 -- | A board with no pieces on it.
 emptyBoard :: Board
 emptyBoard = mkArray (const Nothing) boardRange
@@ -93,30 +84,6 @@ resetEnPassant color = (fmap . fmap) resetPiece
     resetPiece piece = if pieceColor piece == color
         then piece { enPassantTarget = False }
         else piece
-
--- | Return the material on board, as a tuple of white material and black material.
-getMaterial :: Board -> (Set PieceType, Set PieceType)
-getMaterial brd =
-    ( Set.fromList . map pieceType $ whitePieces
-    , Set.fromList . map pieceType $ blackPieces
-    )
-  where
-    (whitePieces, blackPieces) =
-        List.partition ((== White) . pieceColor) allPieces
-    allPieces = catMaybes . elems $ brd
-
--- | Return the colors of all the bishops owned by white and all the bishops owned by black.
-getBishopColors :: Board -> (Set Color, Set Color)
-getBishopColors brd =
-    (Set.fromList whiteBishopColors, Set.fromList blackBishopColors)
-  where
-    whiteBishopColors =
-        [ squareColor ix | (ix, mPiece) <- assocs brd, isBishopOf White mPiece ]
-    blackBishopColors =
-        [ squareColor ix | (ix, mPiece) <- assocs brd, isBishopOf Black mPiece ]
-    isBishopOf color = maybe
-        False
-        (\piece -> pieceColor piece == color && pieceType piece == Bishop)
 
 -- | Create a game given starting board and the player with first turn.
 makeGame :: Board -> Color -> Game

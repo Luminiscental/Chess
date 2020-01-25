@@ -18,10 +18,11 @@ import           Chess.Engine.State             ( makeGame
                                                 , stepGame
                                                 , emptyBoard
                                                 , defaultBoard
-                                                , squareColor
                                                 , nextTurn
-                                                , getMaterial
-                                                , getBishopColors
+                                                )
+import           Chess.Engine.Metrics           ( squareColor
+                                                , bothMaterial
+                                                , bishopColorsFor
                                                 )
 import           Chess.Engine.Rules             ( checkmateRule
                                                 , insufficientMaterialTie
@@ -38,12 +39,13 @@ import           Chess.Engine.Moves             ( applyMove
                                                 , availableActions
                                                 , actionsForColor
                                                 )
-import           Chess.Interface.Notation       ( squareSAN
-                                                , pieceFEN
-                                                , boardFEN
+import           Chess.Interface.SAN            ( squareSAN
                                                 , getSANs
                                                 )
-import           Chess.Interface.Export         ( exportFEN )
+import           Chess.Interface.FEN            ( pieceFEN
+                                                , boardFEN
+                                                , exportFEN
+                                                )
 
 main :: IO ()
 main = defaultMain tests
@@ -51,7 +53,14 @@ main = defaultMain tests
 tests :: TestTree
 tests = testGroup
     "Tests"
-    [stateTests, ruleTests, moveTests, utilTests, notationTests, exportTests]
+    [ metricTests
+    , stateTests
+    , ruleTests
+    , moveTests
+    , utilTests
+    , sanTests
+    , fenTests
+    ]
 
 utilTests :: TestTree
 utilTests = testGroup
@@ -74,19 +83,30 @@ utilTests = testGroup
     @?= [1, -3, -2, 1, 1]
     ]
 
+metricTests :: TestTree
+metricTests = testGroup
+    "Metrics"
+    [ testCase "Square colors" $ squareColor (3, 4) @?= White
+    , testCase "Board material"
+    $   bothMaterial testBoard
+    @?= (Set.fromList [Bishop], Set.fromList [King])
+    , testCase "Bishop colors"
+    $   bishopColorsFor White testBoard
+    @?= Set.fromList [Black]
+    ]
+  where
+    testBoard =
+        emptyBoard
+            // [ ((3, 3), Just $ Piece Bishop White True False)
+               , ((4, 7), Just $ Piece King Black True False)
+               ]
+
 stateTests :: TestTree
 stateTests = testGroup
     "State"
     [ testCase "Next turn" $ nextTurn White @?= Black
-    , testCase "Square colors" $ squareColor (3, 4) @?= White
     , testCase "Board setup" $ defaultBoard ! (5, 1) @?= Just
         (Piece King White False False)
-    , testCase "Board material"
-    $   getMaterial testBoard
-    @?= (Set.fromList [Bishop], Set.fromList [King])
-    , testCase "Bishop colors"
-    $   getBishopColors testBoard
-    @?= (Set.fromList [Black], Set.empty)
     , testCase "Step game"
     $   halfMoveClock (stepGame emptyBoard False startGame)
     @?= 1
@@ -95,12 +115,6 @@ stateTests = testGroup
     ]
   where
     dummySteps n = foldr (.) id $ replicate n (stepGame defaultBoard False)
-    testBoard =
-        emptyBoard
-            // [ ((3, 3), Just $ Piece Bishop White True False)
-               , ((4, 7), Just $ Piece King Black True False)
-               ]
-
 ruleTests :: TestTree
 ruleTests = testGroup
     "Rules"
@@ -307,14 +321,10 @@ moveTests = testGroup
     @?= 4
     ]
 
-notationTests :: TestTree
-notationTests = testGroup
-    "Notation"
+sanTests :: TestTree
+sanTests = testGroup
+    "SAN notation"
     [ testCase "Squares" $ squareSAN (3, 5) @?= "c5"
-    , testCase "Piece FEN" $ pieceFEN (Piece Knight White False False) @?= 'N'
-    , testCase "Board FEN"
-    $   boardFEN defaultBoard
-    @?= "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
     , testCase "Castle SAN"
     $      "O-O"
     `elem` listSANs
@@ -436,13 +446,17 @@ notationTests = testGroup
     ]
     where listSANs player = getSANs . availableActions . flip makeGame player
 
-exportTests :: TestTree
-exportTests = testGroup
-    "Exports"
-    [ testCase "FEN notation - Game start"
+fenTests :: TestTree
+fenTests = testGroup
+    "FEN notation"
+    [ testCase "Piece" $ pieceFEN (Piece Knight White False False) @?= 'N'
+    , testCase "Board"
+    $   boardFEN defaultBoard
+    @?= "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
+    , testCase "Game start"
     $   exportFEN startGame
     @?= "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-    , testCase "FEN notation - En passant"
+    , testCase "En passant"
     $   exportFEN (runAction e4 startGame)
     @?= "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"
     ]

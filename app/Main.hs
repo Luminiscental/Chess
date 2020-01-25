@@ -7,9 +7,8 @@ import           Chess.Engine.Moves             ( runAction
                                                 , availableActions
                                                 )
 import           Chess.Engine.Rules             ( anyTermination )
-import           Chess.Interface.Notation       ( getSANs
-                                                , pieceFEN
-                                                )
+import           Chess.Interface.SAN            ( getSANs )
+import           Chess.Interface.FEN            ( pieceFEN )
 
 import           Data.Foldable                  ( for_ )
 import           Data.Array.IArray              ( (!) )
