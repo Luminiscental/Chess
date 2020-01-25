@@ -10,6 +10,7 @@ module Chess.Interface.SAN
     , getSANs
     , getVerboseSAN
     , simplifyVerboseSANs
+    , parseSquare
     )
 where
 
@@ -19,6 +20,9 @@ import           Chess.Util
 import qualified Data.Char                     as Char
 import           Data.Maybe                     ( isJust )
 import           Data.Function                  ( on )
+import           Text.Parsec                    ( Parsec
+                                                , oneOf
+                                                )
 
 -- | Get the lower case character for a piece type.
 pieceTypeChar :: PieceType -> Char
@@ -113,3 +117,11 @@ simplifyVerboseSANs = disambiguate
     squareNote    = squareSAN . getSquare
     getSquare     = (,) <$> startFile <*> startRank
     genericNotes  = concatOn [captureNote, targetNote, threatNote]
+
+-- | Parse SAN notation for a square on the board.
+parseSquare :: Parsec String () BoardIx
+parseSquare = do
+    file <- oneOf "abcdefgh"
+    rank <- oneOf "12345678"
+    return (1 + Char.ord file - Char.ord 'a', Char.digitToInt rank)
+

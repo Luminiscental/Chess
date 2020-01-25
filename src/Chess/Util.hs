@@ -25,7 +25,7 @@ import           Data.Array.IArray              ( Ix
                                                 , range
                                                 )
 import           Text.Parsec                    ( Parsec
-                                                , many
+                                                , many1
                                                 , digit
                                                 )
 
@@ -81,5 +81,5 @@ disambiguate stages = map <$> firstUnique stages <*> id
 -- | Parse a non-negative integer.
 parseCount :: Parsec String () Int
 parseCount = do
-    digits <- map Char.digitToInt <$> many digit
+    digits <- map Char.digitToInt <$> many1 digit
     return $ foldl ((+) . (* 10)) 0 digits

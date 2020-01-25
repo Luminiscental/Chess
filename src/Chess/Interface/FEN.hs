@@ -8,6 +8,8 @@ module Chess.Interface.FEN
     ( pieceFEN
     , boardFEN
     , exportFEN
+    , parsePieceFEN
+    , parseBoardFEN
     , parseFEN
     )
 where
@@ -16,6 +18,7 @@ import           Chess.Types
 import           Chess.Util
 import           Chess.Interface.SAN            ( squareSAN
                                                 , pieceTypeChar
+                                                , parseSquare
                                                 )
 import           Chess.Engine.Metrics           ( castlingRightsFor )
 
@@ -37,6 +40,7 @@ import           Text.Parsec                    ( Parsec
                                                 , oneOf
                                                 )
 import           Control.Monad                  ( when )
+import           Data.Function                  ( on )
 
 -- | Get the FEN notation for a piece.
 pieceFEN :: Piece -> Char
@@ -92,6 +96,7 @@ exportFEN game = unwords
                 [(file, 4)] -> squareSAN (file, 3)
                 [(file, 5)] -> squareSAN (file, 6)
 
+-- | Parse a character case-insensitive, deducing a color from the case.
 coloredChar :: Char -> Parsec String () Color
 coloredChar c = (char lower >> return Black) <|> (char upper >> return White)
   where
@@ -127,13 +132,16 @@ parseBoardFEN = do
     return $ array
         boardRange
         [ ((column, row), square)
-        | (row   , rank  ) <- zip [1 ..] ranks
-        , (column, square) <- zip [1 ..] rank
+        | (row   , rank  ) <- zip [8, 7 .. 1] ranks
+        , (column, square) <- zip [1 .. 8] rank
         ]
 
+-- | Parse the player whose turn is next from a character w or b.
 parsePlayer :: Parsec String () Color
 parsePlayer = (char 'w' >> return White) <|> (char 'b' >> return Black)
 
+-- | Parse the castling rights section of a FEN position, returning the white and black board sides
+-- with castling rights in a tuple.
 parseCastlingRights :: Parsec String () ([BoardSide], [BoardSide])
 parseCastlingRights = (char '-' >> return ([], [])) <|> do
     whiteKing  <- option [] $ char 'K' >> return [Kingside]
@@ -142,20 +150,28 @@ parseCastlingRights = (char '-' >> return ([], [])) <|> do
     blackQueen <- option [] $ char 'q' >> return [Queenside]
     return (whiteKing ++ whiteQueen, blackKing ++ blackQueen)
 
-parseSquare :: Parsec String () BoardIx
-parseSquare = do
-    file <- oneOf "abcdefgh"
-    rank <- oneOf "12345678"
-    return (1 + Char.ord file - Char.ord 'a', Char.digitToInt rank)
-
+-- | Calculate the corrected board state, given direct placements along with an optional en passant
+-- target position and the castling rights for each player. By default a piece has moved unless the
+-- known information implies that it hasn't.
 calculateBoard :: Board -> Maybe BoardIx -> ([BoardSide], [BoardSide]) -> Board
 calculateBoard placements passantTarget (whiteCastlingRights, blackCastlingRights)
-    = placements
+    = updatePawns
+        $  placements
         // (  passantPiece
            ++ castlablePieces White whiteCastlingRights
            ++ castlablePieces Black blackCastlingRights
            )
   where
+    updatePawns = array boardRange . map updatePawnAt . assocs
+    updatePawnAt (ix, piece) = if isPawn piece && startedAt ix piece
+        then (ix, flip fmap piece $ \p -> p { hasMoved = False })
+        else (ix, piece)
+    isPawn = maybe False ((== Pawn) . pieceType)
+    startedAt ix piece =
+        let startPiece = defaultBoard ! ix
+            sameType   = (==) `on` fmap pieceColor
+            sameColor  = (==) `on` fmap pieceType
+        in  sameType piece startPiece && sameColor piece startPiece
     passantPiece = case passantTarget of
         Just (file, 3) -> [((file, 4), Just $ Piece Pawn White True True)]
         Just (file, 6) -> [((file, 5), Just $ Piece Pawn Black True True)]
@@ -182,7 +198,8 @@ parseFEN = do
     nextMove <- parsePlayer
     char ' '
     castlingRights <- parseCastlingRights
-    passantSquare  <- (char '-' >> return Nothing) <|> fmap Just parseSquare
+    char ' '
+    passantSquare <- (char '-' >> return Nothing) <|> fmap Just parseSquare
     char ' '
     halfMove <- parseCount
     char ' '
