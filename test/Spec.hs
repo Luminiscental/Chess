@@ -16,8 +16,6 @@ import           Chess.Util
 import           Chess.Engine.State             ( makeGame
                                                 , startGame
                                                 , stepGame
-                                                , emptyBoard
-                                                , defaultBoard
                                                 , nextTurn
                                                 )
 import           Chess.Engine.Metrics           ( squareColor

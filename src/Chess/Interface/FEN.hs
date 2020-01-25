@@ -23,10 +23,20 @@ import qualified Data.Char                     as Char
 import qualified Data.List                     as List
 import           Data.Maybe                     ( isNothing )
 import           Data.Array.IArray              ( (!)
+                                                , (//)
+                                                , array
                                                 , range
                                                 , assocs
                                                 )
-import           Text.Parsec                    ( Parsec )
+import           Text.Parsec                    ( Parsec
+                                                , (<|>)
+                                                , sepBy
+                                                , char
+                                                , many1
+                                                , option
+                                                , oneOf
+                                                )
+import           Control.Monad                  ( when )
 
 -- | Get the FEN notation for a piece.
 pieceFEN :: Piece -> Char
@@ -82,7 +92,105 @@ exportFEN game = unwords
                 [(file, 4)] -> squareSAN (file, 3)
                 [(file, 5)] -> squareSAN (file, 6)
 
--- | Parse a 'Game' state from its FEN notation. This loses information about previous positions,
--- so a threefold repetition may be missed as a result of using this.
+coloredChar :: Char -> Parsec String () Color
+coloredChar c = (char lower >> return Black) <|> (char upper >> return White)
+  where
+    lower = Char.toLower c
+    upper = Char.toUpper c
+
+-- | Parse a single piece from its FEN notation.
+parsePieceFEN :: Parsec String () Piece
+parsePieceFEN = pawn <|> rook <|> knight <|> bishop <|> queen <|> king
+  where
+    makePiece pType pColor = Piece pType pColor True False
+    pawn   = makePiece Pawn <$> coloredChar 'p'
+    rook   = makePiece Rook <$> coloredChar 'r'
+    knight = makePiece Knight <$> coloredChar 'n'
+    bishop = makePiece Bishop <$> coloredChar 'b'
+    queen  = makePiece Queen <$> coloredChar 'q'
+    king   = makePiece King <$> coloredChar 'k'
+
+-- | Parse a single rank from its FEN notation.
+parseRankFEN :: Parsec String () [Maybe Piece]
+parseRankFEN = concat <$> many1 chunk
+  where
+    chunk  = gaps <|> pieces
+    pieces = map Just <$> many1 parsePieceFEN
+    gaps   = flip replicate Nothing <$> parseCount
+
+-- | Parse a 'Board' from its FEN notation.
+parseBoardFEN :: Parsec String () Board
+parseBoardFEN = do
+    ranks <- parseRankFEN `sepBy` char '/'
+    when (length ranks /= 8)
+        $ fail ("Expected 8 ranks, got " ++ show (length ranks))
+    return $ array
+        boardRange
+        [ ((column, row), square)
+        | (row   , rank  ) <- zip [1 ..] ranks
+        , (column, square) <- zip [1 ..] rank
+        ]
+
+parsePlayer :: Parsec String () Color
+parsePlayer = (char 'w' >> return White) <|> (char 'b' >> return Black)
+
+parseCastlingRights :: Parsec String () ([BoardSide], [BoardSide])
+parseCastlingRights = (char '-' >> return ([], [])) <|> do
+    whiteKing  <- option [] $ char 'K' >> return [Kingside]
+    whiteQueen <- option [] $ char 'Q' >> return [Queenside]
+    blackKing  <- option [] $ char 'k' >> return [Kingside]
+    blackQueen <- option [] $ char 'q' >> return [Queenside]
+    return (whiteKing ++ whiteQueen, blackKing ++ blackQueen)
+
+parseSquare :: Parsec String () BoardIx
+parseSquare = do
+    file <- oneOf "abcdefgh"
+    rank <- oneOf "12345678"
+    return (1 + Char.ord file - Char.ord 'a', Char.digitToInt rank)
+
+calculateBoard :: Board -> Maybe BoardIx -> ([BoardSide], [BoardSide]) -> Board
+calculateBoard placements passantTarget (whiteCastlingRights, blackCastlingRights)
+    = placements
+        // (  passantPiece
+           ++ castlablePieces White whiteCastlingRights
+           ++ castlablePieces Black blackCastlingRights
+           )
+  where
+    passantPiece = case passantTarget of
+        Just (file, 3) -> [((file, 4), Just $ Piece Pawn White True True)]
+        Just (file, 6) -> [((file, 5), Just $ Piece Pawn Black True True)]
+        Nothing        -> []
+    castlablePieces color rights =
+        let rank = case color of
+                White -> 1
+                Black -> 8
+            king          = ((5, rank), Just $ Piece King color False False)
+            kingsideRook  = ((8, rank), Just $ Piece Rook color False False)
+            queensideRook = ((1, rank), Just $ Piece Rook color False False)
+        in  [ king | not $ null whiteCastlingRights ]
+                ++ [ kingsideRook | Kingside `elem` rights ]
+                ++ [ queensideRook | Queenside `elem` rights ]
+
+-- TODO: Test parsing functions
+
+-- | Parse a 'Game' state from its FEN notation. Because this function cannot know the position
+-- history, detection of threefold repetition may be inaccurate.
 parseFEN :: Parsec String () Game
-parseFEN = undefined
+parseFEN = do
+    placement <- parseBoardFEN
+    char ' '
+    nextMove <- parsePlayer
+    char ' '
+    castlingRights <- parseCastlingRights
+    passantSquare  <- (char '-' >> return Nothing) <|> fmap Just parseSquare
+    char ' '
+    halfMove <- parseCount
+    char ' '
+    fullMove <- parseCount
+    return $ Game
+        { board         = calculateBoard placement passantSquare castlingRights
+        , toMove        = nextMove
+        , halfMoveClock = halfMove
+        , fullMoveCount = fullMove
+        , prevBoardFENs = []
+        }

@@ -11,6 +11,7 @@ module Chess.Util
     , rangeExclusive
     , rangeInclusive
     , disambiguate
+    , parseCount
     )
 where
 
@@ -22,6 +23,10 @@ import           Data.Array.IArray              ( Ix
                                                 , Array
                                                 , array
                                                 , range
+                                                )
+import           Text.Parsec                    ( Parsec
+                                                , many
+                                                , digit
                                                 )
 
 -- | Utility to make an 'Array' given a function from index to value.
@@ -72,3 +77,9 @@ disambiguate stages = map <$> firstUnique stages <*> id
         if (> 1) . length . filter (eqFn value) $ list
             then firstUnique rest list value
             else outFn value
+
+-- | Parse a non-negative integer.
+parseCount :: Parsec String () Int
+parseCount = do
+    digits <- map Char.digitToInt <$> many digit
+    return $ foldl ((+) . (* 10)) 0 digits

@@ -10,9 +10,6 @@ module Chess.Engine.State
     , stepGame
     , makeGame
     , startGame
-    , boardRange
-    , emptyBoard
-    , defaultBoard
     )
 where
 
@@ -41,41 +38,6 @@ import           Data.Array.IArray              ( Array
 nextTurn :: Color -> Color
 nextTurn White = Black
 nextTurn Black = White
-
--- | The range of valid chess board indices.
-boardRange :: (BoardIx, BoardIx)
-boardRange = ((1, 1), (8, 8))
--- | A board with no pieces on it.
-emptyBoard :: Board
-emptyBoard = mkArray (const Nothing) boardRange
-
--- | A list of piece types for the pawn row in an initial board state.
-pawns :: [PieceType]
-pawns = [ Pawn | _ <- [1 .. 8] ]
-
--- | A list of piece types for the piece row in an initial board state.
-starterPieces :: [PieceType]
-starterPieces = [Rook, Knight, Bishop, Queen, King, Bishop, Knight, Rook]
-
--- | A board setup ready to play a normal chess game.
-defaultBoard :: Board
-defaultBoard =
-    emptyBoard // (blackPieces ++ whitePieces ++ blackPawns ++ whitePawns)
-  where
-    starters color row typeList =
-        [ ( (col, row)
-          , Just Piece { pieceType       = pieceType
-                       , pieceColor      = color
-                       , hasMoved        = False
-                       , enPassantTarget = False
-                       }
-          )
-        | (col, pieceType) <- zip [1 ..] typeList
-        ]
-    blackPieces = starters Black 8 starterPieces
-    whitePieces = starters White 1 starterPieces
-    blackPawns  = starters Black 7 pawns
-    whitePawns  = starters White 2 pawns
 
 -- | Reset en passant captures against a color.
 resetEnPassant :: Color -> Board -> Board

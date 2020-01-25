@@ -23,7 +23,6 @@ where
 import           Chess.Types
 import           Chess.Util
 import           Chess.Engine.State             ( stepGame
-                                                , boardRange
                                                 , nextTurn
                                                 )
 
