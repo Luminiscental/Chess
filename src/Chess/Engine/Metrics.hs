@@ -1,3 +1,10 @@
+{-|
+Module      : Chess.Engine.Metrics
+Description : Functions to calculate metrics of a given position.
+
+This module defines functions to return metrics such as material, bishop colors and castling rights
+for a given position.
+-}
 module Chess.Engine.Metrics
     ( squareColor
     , materialFor
@@ -45,6 +52,7 @@ bishopColorsFor color brd = Set.fromList
     isBishopFor color piece =
         pieceColor piece == color && pieceType piece == Bishop
 
+-- | Returns the sides a given color has castling rights to.
 castlingRightsFor :: Color -> Board -> [BoardSide]
 castlingRightsFor color brd =
     [ Kingside | rights right ] ++ [ Queenside | rights left ]

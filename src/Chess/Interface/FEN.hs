@@ -1,3 +1,9 @@
+{-|
+Module      : Chess.Interface.FEN
+Description : Functions for exporting FEN notation of boards / positions.
+
+This module defines functions to get the FEN notation of pieces, board and game states.
+-}
 module Chess.Interface.FEN
     ( pieceFEN
     , boardFEN

@@ -1,3 +1,9 @@
+{-|
+Module      : Chess.Interface.SAN
+Description : Functions for getting SAN notation of objects.
+
+This moduel defines functions to get the SAN notation for pieces, squares and moves.
+-}
 module Chess.Interface.SAN
     ( pieceTypeChar
     , squareSAN
