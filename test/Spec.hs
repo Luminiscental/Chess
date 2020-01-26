@@ -4,12 +4,15 @@ import           Test.Tasty.HUnit
 import qualified Data.Set                      as Set
 import           Data.Function                  ( on )
 import           Data.Array.IArray              ( array
+                                                , amap
                                                 , (!)
                                                 , (//)
                                                 )
 import           Data.Maybe                     ( isJust
                                                 , isNothing
                                                 )
+import           Data.Either                    ( isLeft )
+import           Text.Parsec                    ( parse )
 
 import           Chess.Types
 import           Chess.Util
@@ -39,10 +42,14 @@ import           Chess.Engine.Moves             ( applyMove
                                                 )
 import           Chess.Interface.SAN            ( squareSAN
                                                 , getSANs
+                                                , parseSquare
                                                 )
 import           Chess.Interface.FEN            ( pieceFEN
                                                 , boardFEN
                                                 , exportFEN
+                                                , parsePieceFEN
+                                                , parseBoardFEN
+                                                , parseFEN
                                                 )
 
 main :: IO ()
@@ -441,6 +448,11 @@ sanTests = testGroup
                   ]
                )
     @?     "Checkmate SAN should be given"
+    , testCase "Square parsing - success" $ parse parseSquare "" "a4" @?= Right
+        (1, 4)
+    , testCase "Square parsing - error"
+    $  isLeft (parse parseSquare "" "xyz")
+    @? "Parsing should fail"
     ]
     where listSANs player = getSANs . availableActions . flip makeGame player
 
@@ -457,7 +469,33 @@ fenTests = testGroup
     , testCase "En passant"
     $   exportFEN (runAction e4 startGame)
     @?= "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"
+    , testCase "Parse piece FEN - success"
+    $   parse parsePieceFEN "" "k"
+    @?= Right (Piece King Black True False)
+    , testCase "Parse piece FEN - error"
+    $  isLeft (parse parsePieceFEN "" "M")
+    @? "Parsing should fail"
+    , testCase "Parse board FEN - success"
+    $   parse parseBoardFEN "" "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
+    @?= Right defaultBoard'
+    , testCase "Parse board FEN - error"
+    $  isLeft (parse parseBoardFEN "" "3k4/8/ppppp3")
+    @? "Parsing should fail"
+    , testCase "Parse FEN - success"
+    $   parse parseFEN
+              ""
+              "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"
+    @?= Right (runAction e4 startGame') { prevBoardFENs = [] }
+    , testCase "Parse FEN - error"
+    $  isLeft (parse parseFEN "" "8/8/8/8/8/8/8/8 w - QqKk - 0 0")
+    @? "Parsing should fail"
     ]
   where
     startActionAssocs = zip <$> id <*> getSANs $ availableActions startGame
     e4 = fst . head . filter ((==) "e4" . snd) $ startActionAssocs
+    defaultBoard'     = amap (fmap $ setMovedIfNot []) defaultBoard
+    startGame'        = flip makeGame White
+        $ amap (fmap $ setMovedIfNot [King, Rook, Pawn]) defaultBoard
+    setMovedIfNot pieceTypes piece = if pieceType piece `elem` pieceTypes
+        then piece
+        else piece { hasMoved = True }

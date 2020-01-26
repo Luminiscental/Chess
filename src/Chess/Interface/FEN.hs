@@ -187,8 +187,6 @@ calculateBoard placements passantTarget (whiteCastlingRights, blackCastlingRight
                 ++ [ kingsideRook | Kingside `elem` rights ]
                 ++ [ queensideRook | Queenside `elem` rights ]
 
--- TODO: Test parsing functions
-
 -- | Parse a 'Game' state from its FEN notation. Because this function cannot know the position
 -- history, detection of threefold repetition may be inaccurate.
 parseFEN :: Parsec String () Game

@@ -124,4 +124,3 @@ parseSquare = do
     file <- oneOf "abcdefgh"
     rank <- oneOf "12345678"
     return (1 + Char.ord file - Char.ord 'a', Char.digitToInt rank)
-
