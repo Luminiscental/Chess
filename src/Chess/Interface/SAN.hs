@@ -118,6 +118,8 @@ simplifyVerboseSANs = disambiguate
     getSquare     = (,) <$> startFile <*> startRank
     genericNotes  = concatOn [captureNote, targetNote, threatNote]
 
+-- TODO: Parse actions / moves
+
 -- | Parse SAN notation for a square on the board.
 parseSquare :: Parsec String () BoardIx
 parseSquare = do

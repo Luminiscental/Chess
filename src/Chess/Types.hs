@@ -125,7 +125,7 @@ data BoardSide = Kingside | Queenside deriving (Show, Eq)
 data Move = Move { movingPiece :: Piece
                  , movesFrom :: BoardIx
                  , movesTo :: BoardIx
-                 , updater :: Piece -> Piece
+                 , updater :: Piece -> Piece -- TODO: Rework to be data, not a function
                  , sideEffect :: Maybe Move
                  , threat :: Maybe Threat}
 
