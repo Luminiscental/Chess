@@ -186,12 +186,13 @@ moveTests = testGroup
     "Moves"
     [ testCase "Move application"
     $   applyMove
-            Move { movingPiece = Piece Pawn White False False
-                 , movesFrom   = (3, 4)
-                 , movesTo     = (5, 7)
-                 , updater     = \piece -> piece { hasMoved = True }
-                 , sideEffect  = Nothing
-                 , threat      = Nothing
+            Move { movingPiece       = Piece Pawn White False False
+                 , movesFrom         = (3, 4)
+                 , movesTo           = (5, 7)
+                 , setsPassantTarget = False
+                 , promotion         = Nothing
+                 , sideEffect        = Nothing
+                 , threat            = Nothing
                  }
             (emptyBoard // [((3, 4), Just $ Piece Pawn White False False)])
     @?= (emptyBoard // [((5, 7), Just $ Piece Pawn White True False)])
@@ -199,16 +200,14 @@ moveTests = testGroup
     $   applyAction
             (Capture
                 (3, 3)
-                Move
-                    { movingPiece = Piece Pawn Black False False
-                    , movesFrom   = (1, 1)
-                    , movesTo     = (1, 2)
-                    , updater     =
-                        \piece ->
-                            piece { hasMoved = True, enPassantTarget = True }
-                    , sideEffect  = Nothing
-                    , threat      = Nothing
-                    }
+                Move { movingPiece       = Piece Pawn Black False False
+                     , movesFrom         = (1, 1)
+                     , movesTo           = (1, 2)
+                     , setsPassantTarget = True
+                     , promotion         = Nothing
+                     , sideEffect        = Nothing
+                     , threat            = Nothing
+                     }
             )
             (  emptyBoard
             // [ ((3, 3), Just $ Piece Rook White False False)
@@ -219,19 +218,21 @@ moveTests = testGroup
     , testCase "Side effect"
     $   applyMove
             Move
-                { movingPiece = Piece Pawn White False False
-                , movesFrom   = (7, 6)
-                , movesTo     = (4, 4)
-                , updater     = id
-                , sideEffect  = Just Move
-                                    { movingPiece = Piece King White False False
-                                    , movesFrom   = (1, 1)
-                                    , movesTo     = (2, 2)
-                                    , updater     = id
-                                    , sideEffect  = Nothing
-                                    , threat      = Nothing
-                                    }
-                , threat      = Nothing
+                { movingPiece       = Piece Pawn White False False
+                , movesFrom         = (7, 6)
+                , movesTo           = (4, 4)
+                , setsPassantTarget = False
+                , promotion         = Nothing
+                , sideEffect        = Just Move
+                                          { movingPiece = Piece King White False False
+                                          , movesFrom         = (1, 1)
+                                          , movesTo           = (2, 2)
+                                          , setsPassantTarget = False
+                                          , promotion         = Nothing
+                                          , sideEffect        = Nothing
+                                          , threat            = Nothing
+                                          }
+                , threat            = Nothing
                 }
             (  emptyBoard
             // [ ((7, 6), Just $ Piece Pawn White False False)
@@ -239,19 +240,20 @@ moveTests = testGroup
                ]
             )
     @?= (  emptyBoard
-        // [ ((4, 4), Just $ Piece Pawn White False False)
-           , ((2, 2), Just $ Piece King White False False)
+        // [ ((4, 4), Just $ Piece Pawn White True False)
+           , ((2, 2), Just $ Piece King White True False)
            ]
         )
     , testCase "Resetting half move clock"
     $   halfMoveClock
             (runAction
                 (NoCapture Move { movingPiece = Piece Pawn White False False
-                                , movesFrom   = (3, 2)
-                                , movesTo     = (3, 3)
-                                , updater = \piece -> piece { hasMoved = True }
-                                , sideEffect  = Nothing
-                                , threat      = Nothing
+                                , movesFrom         = (3, 2)
+                                , movesTo           = (3, 3)
+                                , setsPassantTarget = False
+                                , promotion         = Nothing
+                                , sideEffect        = Nothing
+                                , threat            = Nothing
                                 }
                 )
                 startGame

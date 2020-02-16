@@ -18,7 +18,9 @@ import           Chess.Types
 import           Chess.Util
 
 import qualified Data.Char                     as Char
-import           Data.Maybe                     ( isJust )
+import           Data.Maybe                     ( isJust
+                                                , maybeToList
+                                                )
 import           Data.Function                  ( on )
 import           Text.Parsec                    ( Parsec
                                                 , oneOf
@@ -51,8 +53,7 @@ getSANs = simplifyVerboseSANs . map getVerboseSAN
 -- | Get the 'VerboseSAN' for a given action.
 getVerboseSAN :: Action -> VerboseSAN
 getVerboseSAN action =
-    let
-        move                   = getMove action
+    let move                   = getMove action
         isCapture              = captures action
         piece                  = movingPiece move
         (startFile, startRank) = movesFrom move
@@ -63,24 +64,22 @@ getVerboseSAN action =
         targetNote  = squareSAN . movesTo $ move
         threatSuffix Check     = "+"
         threatSuffix Checkmate = "#"
-        threatNote   = maybe "" threatSuffix (threat move)
-        updatedPiece = updater move piece
-        updatedPieceNote =
-            [Char.toUpper . pieceTypeChar . pieceType $ updatedPiece]
+        threatNote = maybe "" threatSuffix (threat move)
+        promotionNote =
+                map (Char.toUpper . pieceTypeChar) . maybeToList . promotion $ move
         castleNote = if isJust (sideEffect move)
             then case fileChar . fst . movesTo $ move of
                 'c' -> "O-O-O"
                 'g' -> "O-O"
             else ""
-    in
-        VerboseSAN { pieceNote        = pieceNote
-                   , startFile        = startFile
-                   , startRank        = startRank
-                   , captureNote      = captureNote
-                   , targetNote       = targetNote
-                   , threatNote       = threatNote
-                   , updatedPieceNote = updatedPieceNote
-                   , castleNote       = castleNote
+    in  VerboseSAN { pieceNote     = pieceNote
+                   , startFile     = startFile
+                   , startRank     = startRank
+                   , captureNote   = captureNote
+                   , targetNote    = targetNote
+                   , threatNote    = threatNote
+                   , promotionNote = promotionNote
+                   , castleNote    = castleNote
                    }
 
 -- | Simplify a list of 'VerboseSAN's, mapping to each canonical SAN as a string and disambiguating
@@ -94,8 +93,7 @@ simplifyVerboseSANs = disambiguate
     , (equatePieceTargetRank  , concatOn [pieceNote, rankNote, genericNotes])
     , (equatePieceTargetSquare, concatOn [pieceNote, squareNote, genericNotes])
     , ( defaultCase
-      , concatOn
-          [pieceNote, captureNote, targetNote, updatedPieceNote, threatNote]
+      , concatOn [pieceNote, captureNote, targetNote, promotionNote, threatNote]
       )
     ]
   where

@@ -125,7 +125,8 @@ data BoardSide = Kingside | Queenside deriving (Show, Eq)
 data Move = Move { movingPiece :: Piece
                  , movesFrom :: BoardIx
                  , movesTo :: BoardIx
-                 , updater :: Piece -> Piece -- TODO: Rework to be data, not a function
+                 , promotion :: Maybe PieceType
+                 , setsPassantTarget :: Bool
                  , sideEffect :: Maybe Move
                  , threat :: Maybe Threat}
 
@@ -164,5 +165,5 @@ data VerboseSAN = VerboseSAN { pieceNote :: String
                              , captureNote :: String
                              , targetNote :: String
                              , threatNote :: String
-                             , updatedPieceNote :: String
+                             , promotionNote :: String
                              , castleNote :: String }

@@ -52,10 +52,15 @@ isCapture (NoCapture _) = False
 applyMove :: Move -> Board -> Board
 applyMove move brd = postMove $ brd // changes
   where
-    piece    = brd ! movesFrom move
-    postMove = maybe id applyMove $ sideEffect move
-    changes =
-        [(movesFrom move, Nothing), (movesTo move, updater move <$> piece)]
+    piece            = movingPiece move
+    postMove         = maybe id applyMove $ sideEffect move
+    newPassantTarget = setsPassantTarget move || enPassantTarget piece
+    oldType          = pieceType piece
+    newPiece         = piece { hasMoved = True
+                             , pieceType = fromMaybe oldType (promotion move)
+                             , enPassantTarget = newPassantTarget
+                             }
+    changes = [(movesFrom move, Nothing), (movesTo move, Just newPiece)]
 
 -- | Apply an 'Action' to a 'Board'.
 applyAction :: Action -> Board -> Board
@@ -201,20 +206,17 @@ updateMove :: (Move -> Move) -> Action -> Action
 updateMove updater (NoCapture move ) = NoCapture $ updater move
 updateMove updater (Capture at move) = Capture at $ updater move
 
-updateWith :: (Piece -> Piece) -> Action -> Action
-updateWith newUpdater =
-    updateMove $ \move -> move { updater = newUpdater . updater move }
-
 withSideEffect :: Move -> Move -> Move
 withSideEffect effect move = move { sideEffect = Just effect }
 
 moveFrom :: Board -> BoardIx -> BoardIx -> Move
-moveFrom board start end = Move { movingPiece = fromJust $ board ! start
-                                , movesFrom   = start
-                                , movesTo     = end
-                                , updater = \piece -> piece { hasMoved = True }
-                                , sideEffect  = Nothing
-                                , threat      = Nothing
+moveFrom board start end = Move { movingPiece       = fromJust $ board ! start
+                                , movesFrom         = start
+                                , movesTo           = end
+                                , promotion         = Nothing
+                                , setsPassantTarget = False
+                                , sideEffect        = Nothing
+                                , threat            = Nothing
                                 }
 
 captureFrom :: Board -> BoardIx -> BoardIx -> Action
@@ -277,12 +279,14 @@ pawnStep = nthAction 1 . noCaptures . lineOfSightMove . pawnDirection
 pawnLeap :: Color -> ActionRule
 pawnLeap =
     nthAction 2
-        . (fmap . fmap) (map $ updateWith setPassantTarget)
+        . withPassantTarget
         . noCaptures
         . onlyWhen (not . hasMoved)
         . lineOfSightMove
         . pawnDirection
-    where setPassantTarget piece = piece { enPassantTarget = True }
+  where
+    withPassantTarget rule = fmap (map $ updateMove setPassant) . rule
+    setPassant move = move { setsPassantTarget = True }
 
 pawnCapture :: Color -> Int -> ActionRule
 pawnCapture color dx = jumpCapture (directionx + dx, directiony)
@@ -313,8 +317,8 @@ checkPawnPromotion rule board pos = do
         Black -> 1
     color = pieceColor . fromJust $ board ! pos
     promotionsFor action =
-        map (flip updateWith action . promoteTo) [Queen, Knight, Rook, Bishop]
-    promoteTo newType piece = piece { pieceType = newType }
+        map (flip updateMove action . promoteTo) [Queen, Knight, Rook, Bishop]
+    promoteTo newType move = move { promotion = Just newType }
 
 castleActionRule :: Int -> ActionRule
 castleActionRule = noCaptures . castleMoveRule
