@@ -42,6 +42,7 @@ import           Chess.Engine.Moves             ( applyMove
                                                 )
 import           Chess.Interface.SAN            ( squareSAN
                                                 , getSANs
+                                                , parseSAN
                                                 , parseSquare
                                                 )
 import           Chess.Interface.FEN            ( pieceFEN
@@ -455,6 +456,23 @@ sanTests = testGroup
     , testCase "Square parsing - error"
     $  isLeft (parse parseSquare "" "xyz")
     @? "Parsing should fail"
+    , testCase "Move SAN parsing - success"
+        $ let actions = availableActions startGame
+              testSAN = "e4"
+          in  parseSAN actions testSAN @?= Just
+                  (NoCapture Move { movingPiece = Piece Pawn White False False
+                                  , movesFrom         = (5, 2)
+                                  , movesTo           = (5, 4)
+                                  , promotion         = Nothing
+                                  , setsPassantTarget = True
+                                  , sideEffect        = Nothing
+                                  , threat            = Nothing
+                                  }
+                  )
+    , testCase "Move SAN parsing - failure"
+        $ let actions = availableActions startGame
+              testSAN = "d5"
+          in  parseSAN actions testSAN @?= Nothing
     ]
     where listSANs player = getSANs . availableActions . flip makeGame player
 

@@ -10,6 +10,7 @@ module Chess.Interface.SAN
     , getSANs
     , getVerboseSAN
     , simplifyVerboseSANs
+    , parseSAN
     , parseSquare
     )
 where
