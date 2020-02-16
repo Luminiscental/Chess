@@ -114,11 +114,13 @@ data Game = Game { board :: Board, toMove :: Color, halfMoveClock :: Int, fullMo
     deriving (Show, Eq)
 
 -- | Represents possible threats a move could give, used for notation purposes.
-data Threat = Check | Checkmate deriving (Show, Eq)
+data Threat = Check | Checkmate
+    deriving (Show, Eq)
 
 -- | A 'BoardSide' is used for castling rights, distinguishing the two horizontal halves of the
 -- board.
-data BoardSide = Kingside | Queenside deriving (Show, Eq)
+data BoardSide = Kingside | Queenside
+    deriving (Show, Eq)
 
 -- | A 'Move' record contains the start and end locations of a move, including any side effect
 -- moves for castling, and an updating function to apply to the moved piece.
@@ -129,9 +131,11 @@ data Move = Move { movingPiece :: Piece
                  , setsPassantTarget :: Bool
                  , sideEffect :: Maybe Move
                  , threat :: Maybe Threat}
+    deriving (Show, Eq)
 
 -- | An 'Action' represents a 'Move' with metadata about where and whether a capture occurs.
 data Action = NoCapture Move | Capture BoardIx Move
+    deriving (Show, Eq)
 
 -- | Get the underlying 'Move' for an 'Action'.
 getMove :: Action -> Move
@@ -150,10 +154,12 @@ type MoveRule = Board -> BoardIx -> [Move]
 type ActionRule = Board -> BoardIx -> [Action]
 
 -- | An enumeration of the possible causes of a tie.
-data TieCause = FiftyMoveRule | Stalemate | ThreefoldRepetition | InsufficientMaterial deriving (Show, Eq)
+data TieCause = FiftyMoveRule | Stalemate | ThreefoldRepetition | InsufficientMaterial
+    deriving (Show, Eq)
 
 -- | An ADT for possible results of a game.
-data GameResult = Win Color | Tie TieCause deriving (Show, Eq)
+data GameResult = Win Color | Tie TieCause
+    deriving (Show, Eq)
 
 -- | A 'TerminationRule' determines whether a game has finished, giving the result if so.
 type TerminationRule = Game -> Maybe GameResult
