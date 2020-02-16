@@ -116,7 +116,16 @@ simplifyVerboseSANs = disambiguate
     getSquare     = (,) <$> startFile <*> startRank
     genericNotes  = concatOn [captureNote, targetNote, threatNote]
 
--- TODO: Parse actions / moves
+-- | Parse SAN notation for a move, given a list of 'Action's for each available move in the
+-- relevant position. Returns 'Nothing' if no action matches or if the notation is ambiguous.
+parseSAN :: [Action] -> String -> Maybe Action
+parseSAN actions san =
+    let sanPairs        = zip actions (getSANs actions)
+        -- TODO: allow over-verbose specification
+        matchingActions = map fst . filter ((== san) . snd) $ sanPairs
+    in  case matchingActions of
+            [action] -> Just action
+            _        -> Nothing
 
 -- | Parse SAN notation for a square on the board.
 parseSquare :: Parsec String () BoardIx
